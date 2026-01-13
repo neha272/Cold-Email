@@ -32,6 +32,13 @@ types-python-dotenv = "^1.0.0"
 [tool.poetry.scripts]
 cold-emailer = "cold_emailer.cli:app"
 
+[tool.poetry.group.dev.scripts]
+format = "black src tests"
+lint = "ruff check src tests"
+type-check = "mypy src"
+test = "pytest"
+test-cov = "pytest --cov=cold_emailer --cov-report=term-missing"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

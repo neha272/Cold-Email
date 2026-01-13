@@ -1,0 +1,48 @@
+# Cold Emailer Configuration
+
+# Application settings
+app:
+  name: "Cold Emailer"
+  version: "0.1.0"
+  timezone: "UTC"
+
+# Database
+database:
+  path: "data/state.db"
+  echo: false  # Set to true for SQL query logging
+
+# Email settings
+email:
+  default_from_name: "{{ env.SMTP_FROM_NAME }}"
+  default_from_email: "{{ env.SMTP_FROM_EMAIL }}"
+  reply_to: null  # Optional reply-to address
+  encoding: "utf-8"
+
+# Throttling
+throttling:
+  daily_max: "{{ env.DAILY_MAX_EMAILS | int }}"
+  per_minute_limit: "{{ env.PER_MINUTE_LIMIT | int }}"
+  send_window_start: "09:00"  # 24-hour format
+  send_window_end: "17:00"
+
+# Safety
+safety:
+  require_confirm_send: "{{ env.REQUIRE_CONFIRM_SEND | default('false') | bool }}"
+  safe_mode: "{{ env.SAFE_MODE | default('true') | bool }}"
+  validate_email_domain: true
+  max_attachment_size_mb: 10
+
+# Paths
+paths:
+  prospects_dir: "data"
+  resumes_dir: "assets/resumes"
+  templates_dir: "templates"
+  logs_dir: "logs"
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  format: "json"  # json or text
+  file: "logs/cold-emailer.log"
+  max_bytes: 10485760  # 10MB
+  backup_count: 5

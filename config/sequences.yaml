@@ -1,0 +1,51 @@
+# Follow-up Sequence Definitions
+# Each sequence defines a series of email steps with templates and wait periods
+
+sequences:
+  default:
+    name: "Default Sequence"
+    steps:
+      - step: 0
+        template: "initial"
+        wait_days: 3
+        subject: "Quick question about {{ company }}"
+      - step: 1
+        template: "followup_1"
+        wait_days: 5
+        subject: "Following up on my message"
+      - step: 2
+        template: "followup_2"
+        wait_days: 7
+        subject: "Last follow-up"
+
+  aggressive:
+    name: "Aggressive Sequence"
+    steps:
+      - step: 0
+        template: "initial"
+        wait_days: 2
+        subject: "Quick question about {{ company }}"
+      - step: 1
+        template: "followup_1"
+        wait_days: 3
+        subject: "Following up"
+      - step: 2
+        template: "followup_2"
+        wait_days: 4
+        subject: "Final follow-up"
+
+  gentle:
+    name: "Gentle Sequence"
+    steps:
+      - step: 0
+        template: "initial"
+        wait_days: 5
+        subject: "Quick question about {{ company }}"
+      - step: 1
+        template: "followup_1"
+        wait_days: 7
+        subject: "Following up on my message"
+      - step: 2
+        template: "followup_2"
+        wait_days: 10
+        subject: "Last follow-up"

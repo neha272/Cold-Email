@@ -152,6 +152,22 @@ def run(
             help="Require confirmation before sending (safety check)",
         ),
     ] = False,
+    manifest: Annotated[
+        Path,
+        typer.Option(
+            "--manifest",
+            "-m",
+            help="Path to resume manifest CSV file",
+        ),
+    ] = Path("data/resume_manifest.csv"),
+    config: Annotated[
+        Path,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to config file",
+        ),
+    ] = Path("config/settings.yaml"),
 ) -> None:
     """Run the cold-email automation workflow."""
     logger.info(
@@ -161,8 +177,59 @@ def run(
         confirm_send=confirm_send,
         command="run",
     )
-    typer.echo(f"Running automation (dry_run={dry_run}, confirm_send={confirm_send})")
-    # TODO: Phase 7 - Implement orchestrator
+
+    try:
+        # Load configuration
+        settings = load_config(str(config))
+        sequences = load_sequences()
+        env_settings = EnvSettings()
+
+        # Safety check
+        if not dry_run and settings.safety.require_confirm_send and not confirm_send:
+            typer.echo("✗ Error: --confirm-send required for live runs", err=True)
+            raise typer.Exit(1)
+
+        # Load resume manifest
+        manifest_path = Path(settings.paths.resumes_dir).parent / manifest.name
+        if not manifest_path.exists():
+            manifest_path = manifest
+        resume_manifest = ResumeManifest(manifest_path, base_path=Path("."))
+
+        # Create orchestrator
+        orchestrator = Orchestrator(
+            settings=settings,
+            env_settings=env_settings,
+            sequences=sequences,
+            dry_run=dry_run,
+        )
+
+        # Run daily workflow
+        summary = orchestrator.run_daily(prospects_file=file, manifest=resume_manifest)
+
+        # Display summary
+        typer.echo("\n" + "=" * 60)
+        typer.echo("Run Summary")
+        typer.echo("=" * 60)
+        typer.echo(f"Mode: {'DRY RUN' if dry_run else 'LIVE'}")
+        typer.echo(f"\nIngestion:")
+        typer.echo(f"  Created: {summary['ingested']['created']}")
+        typer.echo(f"  Updated: {summary['ingested']['updated']}")
+        if summary["ingested"]["errors"]:
+            typer.echo(f"  Errors: {len(summary['ingested']['errors'])}")
+
+        typer.echo(f"\nReplies Detected: {summary['replies_detected']}")
+        typer.echo(f"\nEmails:")
+        typer.echo(f"  Sent: {summary['emails_sent']}")
+        typer.echo(f"  Failed: {summary['emails_failed']}")
+        if summary["throttled"] > 0:
+            typer.echo(f"  Throttled: {summary['throttled']}")
+
+        typer.echo("=" * 60)
+
+    except Exception as e:
+        logger.error("Failed to run automation", error=str(e))
+        typer.echo(f"✗ Error: {e}", err=True)
+        raise typer.Exit(1)
 
 
 @app.command()

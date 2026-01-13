@@ -62,11 +62,67 @@ def ingest(
             dir_okay=False,
         ),
     ],
+    manifest: Annotated[
+        Path,
+        typer.Option(
+            "--manifest",
+            "-m",
+            help="Path to resume manifest CSV file",
+        ),
+    ] = Path("data/resume_manifest.csv"),
+    config: Annotated[
+        Path,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to config file",
+        ),
+    ] = Path("config/settings.yaml"),
+    reset_state: Annotated[
+        bool,
+        typer.Option(
+            "--reset-state",
+            help="Reset prospect state for existing prospects",
+        ),
+    ] = False,
 ) -> None:
     """Ingest prospects from CSV/Excel file."""
     logger.info("Ingesting prospects", file=str(file), command="ingest")
-    typer.echo(f"Ingesting prospects from {file}")
-    # TODO: Phase 3 - Implement ingestion
+    try:
+        settings = load_config(str(config))
+        engine = create_database_engine(
+            db_path=settings.database.path, echo=settings.database.echo
+        )
+
+        # Load resume manifest
+        manifest_path = Path(settings.paths.resumes_dir).parent / manifest.name
+        if not manifest_path.exists():
+            manifest_path = manifest
+        resume_manifest = ResumeManifest(manifest_path, base_path=Path("."))
+
+        with get_session(engine) as session:
+            repo = ProspectRepository(session)
+            created, updated, errors = ingest_prospects(
+                file_path=file,
+                manifest=resume_manifest,
+                repo=repo,
+                reset_state=reset_state,
+            )
+
+            typer.echo(f"\n✓ Ingestion complete:")
+            typer.echo(f"  Created: {created}")
+            typer.echo(f"  Updated: {updated}")
+            if errors:
+                typer.echo(f"  Errors: {len(errors)}")
+                for error in errors[:5]:  # Show first 5 errors
+                    typer.echo(f"    - {error.get('email', 'unknown')}: {error.get('error')}")
+                if len(errors) > 5:
+                    typer.echo(f"    ... and {len(errors) - 5} more errors")
+
+    except Exception as e:
+        logger.error("Failed to ingest prospects", error=str(e))
+        typer.echo(f"✗ Error: {e}", err=True)
+        raise typer.Exit(1)
 
 
 @app.command()

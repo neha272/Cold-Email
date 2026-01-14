@@ -8,7 +8,7 @@ from typing import Any
 
 from openpyxl import load_workbook
 
-from cold_emailer.attachments import ResumeManifest
+from cold_emailer.attachments import find_resume_file
 from cold_emailer.utils import get_logger
 
 logger = get_logger(__name__)
@@ -109,7 +109,7 @@ def parse_csv(file_path: Path) -> list[dict[str, Any]]:
 
                 # Build prospect data
                 prospect_data: dict[str, Any] = {
-                    "id": uuid.UUID(prospect_id) if len(prospect_id) == 36 else None,
+                    "id": prospect_id if len(prospect_id) == 36 else None,
                     "email": email,
                     "full_name": full_name,
                     "company": company,
@@ -199,12 +199,12 @@ def parse_excel(file_path: Path) -> list[dict[str, Any]]:
             if prospect_id_col is not None and row[prospect_id_col]:
                 prospect_id = str(row[prospect_id_col]).strip()
 
-            if not prospect_id:
-                prospect_id = generate_prospect_id(email, company)
+                if not prospect_id:
+                    prospect_id = generate_prospect_id(email, company)
 
-            # Build prospect data
-            prospect_data: dict[str, Any] = {
-                "id": uuid.UUID(prospect_id) if len(prospect_id) == 36 else None,
+                # Build prospect data
+                prospect_data: dict[str, Any] = {
+                    "id": prospect_id if len(prospect_id) == 36 else None,
                 "email": email,
                 "full_name": full_name,
                 "company": company,
@@ -244,7 +244,7 @@ def parse_excel(file_path: Path) -> list[dict[str, Any]]:
 
 def ingest_prospects(
     file_path: Path,
-    manifest: ResumeManifest,
+    resumes_dir: Path,
     repo: Any,  # ProspectRepository
     reset_state: bool = False,
 ) -> tuple[int, int, list[dict[str, Any]]]:
@@ -253,7 +253,7 @@ def ingest_prospects(
 
     Args:
         file_path: Path to prospects CSV/Excel file
-        manifest: ResumeManifest instance
+        resumes_dir: Directory containing resume PDF files
         repo: ProspectRepository instance
         reset_state: If True, reset prospect state (default: False, preserve state)
 
@@ -284,8 +284,8 @@ def ingest_prospects(
         try:
             resume_id = prospect_data["resume_id"]
 
-            # Validate resume
-            is_valid, error_msg, resume_info = manifest.validate_resume(resume_id)
+            # Find and validate resume file
+            is_valid, error_msg, resume_info = find_resume_file(resume_id, resumes_dir)
             if not is_valid:
                 error_detail = {
                     "email": prospect_data.get("email"),
@@ -312,8 +312,14 @@ def ingest_prospects(
                     prospect_data["next_action_at"] = None
                     prospect_data["thread_key"] = None
                     prospect_data["last_error"] = None
+                else:
+                    # Preserve existing state but ensure NEW prospects have NULL next_action_at
+                    if existing.status == "NEW" and existing.next_action_at is not None:
+                        prospect_data["next_action_at"] = None
                 updated_count += 1
             else:
+                # New prospect - ensure next_action_at is NULL for immediate eligibility
+                prospect_data["next_action_at"] = None
                 created_count += 1
 
             # Upsert prospect

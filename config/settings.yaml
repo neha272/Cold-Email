@@ -22,8 +22,8 @@ email:
 throttling:
   daily_max: "{{ env.DAILY_MAX_EMAILS | int }}"
   per_minute_limit: "{{ env.PER_MINUTE_LIMIT | int }}"
-  send_window_start: "09:00"  # 24-hour format
-  send_window_end: "17:00"
+  send_window_start: "00:00"  # 24-hour format (temporarily set to all day for testing)
+  send_window_end: "23:59"
 
 # Safety
 safety:

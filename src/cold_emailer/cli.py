@@ -7,7 +7,8 @@ from pathlib import Path
 import typer
 from typing_extensions import Annotated
 
-from cold_emailer.config import load_config, load_sequences
+from cold_emailer.config import EnvSettings, load_config, load_sequences
+from cold_emailer.orchestrator import Orchestrator
 from cold_emailer.state_store.db import create_database_engine, get_session, init_database
 from cold_emailer.state_store.models import ProspectStatus
 from cold_emailer.state_store.repo import MessageEventRepository, ProspectRepository
@@ -51,42 +52,28 @@ def init_db(
 
 @app.command()
 def ingest(
-    file: Annotated[
-        Path,
-        typer.Option(
-            "--file",
-            "-f",
-            help="Path to prospects CSV/Excel file",
-            exists=True,
-            file_okay=True,
-            dir_okay=False,
-        ),
-    ],
-    manifest: Annotated[
-        Path,
-        typer.Option(
-            "--manifest",
-            "-m",
-            help="Path to resume manifest CSV file",
-        ),
-    ] = Path("data/resume_manifest.csv"),
-    config: Annotated[
-        Path,
-        typer.Option(
-            "--config",
-            "-c",
-            help="Path to config file",
-        ),
-    ] = Path("config/settings.yaml"),
-    reset_state: Annotated[
-        bool,
-        typer.Option(
-            "--reset-state",
-            help="Reset prospect state for existing prospects",
-        ),
-    ] = False,
+    file: Path = typer.Argument(
+        ...,
+        help="Path to prospects CSV/Excel file",
+    ),
+    config: Path = typer.Option(
+        Path("config/settings.yaml"),
+        "--config",
+        "-c",
+        help="Path to config file",
+    ),
+    reset_state: bool = typer.Option(
+        False,
+        "--reset-state",
+        help="Reset prospect state for existing prospects",
+    ),
 ) -> None:
     """Ingest prospects from CSV/Excel file."""
+    # Validate file exists
+    if not file.exists():
+        typer.echo(f"✗ Error: File not found: {file}", err=True)
+        raise typer.Exit(1)
+    
     logger.info("Ingesting prospects", file=str(file), command="ingest")
     try:
         settings = load_config(str(config))
@@ -94,17 +81,14 @@ def ingest(
             db_path=settings.database.path, echo=settings.database.echo
         )
 
-        # Load resume manifest
-        manifest_path = Path(settings.paths.resumes_dir).parent / manifest.name
-        if not manifest_path.exists():
-            manifest_path = manifest
-        resume_manifest = ResumeManifest(manifest_path, base_path=Path("."))
+        # Get resumes directory from settings
+        resumes_dir = Path(settings.paths.resumes_dir)
 
         with get_session(engine) as session:
             repo = ProspectRepository(session)
             created, updated, errors = ingest_prospects(
                 file_path=file,
-                manifest=resume_manifest,
+                resumes_dir=resumes_dir,
                 repo=repo,
                 reset_state=reset_state,
             )
@@ -127,54 +111,48 @@ def ingest(
 
 @app.command()
 def run(
-    file: Annotated[
-        Path,
-        typer.Option(
-            "--file",
-            "-f",
-            help="Path to prospects CSV/Excel file",
-            exists=True,
-            file_okay=True,
-            dir_okay=False,
-        ),
-    ],
-    dry_run: Annotated[
-        bool,
-        typer.Option(
-            "--dry-run",
-            help="Run without sending emails",
-        ),
-    ] = False,
-    confirm_send: Annotated[
-        bool,
-        typer.Option(
-            "--confirm-send",
-            help="Require confirmation before sending (safety check)",
-        ),
-    ] = False,
-    manifest: Annotated[
-        Path,
-        typer.Option(
-            "--manifest",
-            "-m",
-            help="Path to resume manifest CSV file",
-        ),
-    ] = Path("data/resume_manifest.csv"),
-    config: Annotated[
-        Path,
-        typer.Option(
-            "--config",
-            "-c",
-            help="Path to config file",
-        ),
-    ] = Path("config/settings.yaml"),
+    file: Path = typer.Argument(
+        ...,
+        help="Path to prospects CSV/Excel file",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Run without sending emails (no emails will be sent)",
+    ),
+    confirm_send: bool = typer.Option(
+        False,
+        "--confirm-send",
+        help="Require confirmation before sending (safety check)",
+    ),
+    config: Path = typer.Option(
+        Path("config/settings.yaml"),
+        "--config",
+        "-c",
+        help="Path to config file",
+    ),
 ) -> None:
     """Run the cold-email automation workflow."""
+    # Validate file exists
+    if not file.exists():
+        typer.echo(f"✗ Error: File not found: {file}", err=True)
+        raise typer.Exit(1)
+    
+    # Fix boolean flag handling
+    # Typer boolean flags: presence of flag = True, absence = False
+    # But sometimes Typer doesn't properly set the value, so we check sys.argv as fallback
+    import sys
+    # Check if --dry-run flag is explicitly in command line
+    has_dry_run_flag = any(arg == "--dry-run" for arg in sys.argv)
+    # Use sys.argv check as primary source of truth since Typer flag isn't working reliably
+    actual_dry_run = has_dry_run_flag
+    actual_confirm_send = bool(confirm_send) if confirm_send is not None else False
+    
     logger.info(
         "Running automation",
         file=str(file),
-        dry_run=dry_run,
-        confirm_send=confirm_send,
+        dry_run=actual_dry_run,
+        confirm_send=actual_confirm_send,
         command="run",
     )
 
@@ -185,32 +163,27 @@ def run(
         env_settings = EnvSettings()
 
         # Safety check
-        if not dry_run and settings.safety.require_confirm_send and not confirm_send:
+        if not actual_dry_run and settings.safety.require_confirm_send and not actual_confirm_send:
             typer.echo("✗ Error: --confirm-send required for live runs", err=True)
             raise typer.Exit(1)
-
-        # Load resume manifest
-        manifest_path = Path(settings.paths.resumes_dir).parent / manifest.name
-        if not manifest_path.exists():
-            manifest_path = manifest
-        resume_manifest = ResumeManifest(manifest_path, base_path=Path("."))
 
         # Create orchestrator
         orchestrator = Orchestrator(
             settings=settings,
             env_settings=env_settings,
             sequences=sequences,
-            dry_run=dry_run,
+            dry_run=actual_dry_run,
         )
 
         # Run daily workflow
-        summary = orchestrator.run_daily(prospects_file=file, manifest=resume_manifest)
+        summary = orchestrator.run_daily(prospects_file=file)
 
         # Display summary
         typer.echo("\n" + "=" * 60)
         typer.echo("Run Summary")
         typer.echo("=" * 60)
-        typer.echo(f"Mode: {'DRY RUN' if dry_run else 'LIVE'}")
+        # Use the actual dry_run value from CLI
+        typer.echo(f"Mode: {'DRY RUN' if actual_dry_run else 'LIVE'}")
         typer.echo(f"\nIngestion:")
         typer.echo(f"  Created: {summary['ingested']['created']}")
         typer.echo(f"  Updated: {summary['ingested']['updated']}")

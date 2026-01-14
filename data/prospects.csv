@@ -1,4 +1,0 @@
-prospect_id,full_name,company,email,resume_id,role_title,sequence_id
-PROS-001,John Doe,Acme Corp,john.doe@acme.com,RES-00042,Software Engineer,default
-PROS-002,Jane Smith,TechStart Inc,jane.smith@techstart.com,RES-00042,Product Manager,default
-PROS-003,Bob Johnson,Innovate Labs,bob.j@innovate.com,RES-00043,Engineering Manager,aggressive

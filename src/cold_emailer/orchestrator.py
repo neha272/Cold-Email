@@ -5,13 +5,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from cold_emailer.attachments import ResumeManifest
 from cold_emailer.composer import EmailComposer, create_composer_from_config
 from cold_emailer.config import EnvSettings, load_config, load_sequences
 from cold_emailer.ingestion import ingest_prospects
 from cold_emailer.mailer.imap_reply_detector import ReplyDetector, create_reply_detector_from_config
 from cold_emailer.mailer.smtp_sender import SMTPSender, create_smtp_sender_from_config
-from cold_emailer.state_store.db import create_database_engine, get_session
+from cold_emailer.state_store.db import create_database_engine, get_session, init_database
 from cold_emailer.state_store.models import MessageEventType, ProspectStatus
 from cold_emailer.state_store.repo import MessageEventRepository, ProspectRepository
 from cold_emailer.utils import get_logger
@@ -83,11 +82,12 @@ class Orchestrator:
     def _is_within_send_window(self) -> bool:
         """
         Check if current time is within send window.
+        Uses local time to match user's timezone expectations.
 
         Returns:
             True if within window
         """
-        now = datetime.utcnow()
+        now = datetime.now()  # Use local time instead of UTC
         current_time = now.strftime("%H:%M")
 
         start = self.settings.throttling.send_window_start
@@ -96,24 +96,29 @@ class Orchestrator:
         return start <= current_time <= end
 
     def ingest_prospects_file(
-        self, file_path: Path, manifest: ResumeManifest, reset_state: bool = False
+        self, file_path: Path, reset_state: bool = False
     ) -> tuple[int, int, list[dict[str, Any]]]:
         """
         Ingest prospects from file.
 
         Args:
             file_path: Path to prospects file
-            manifest: ResumeManifest instance
             reset_state: Reset state for existing prospects
 
         Returns:
             Tuple of (created_count, updated_count, errors)
         """
+        # Ensure database is initialized
+        init_database(self.engine)
+        
+        # Get resumes directory from settings
+        resumes_dir = Path(self.settings.paths.resumes_dir)
+        
         with get_session(self.engine) as session:
             repo = ProspectRepository(session)
             created, updated, errors = ingest_prospects(
                 file_path=file_path,
-                manifest=manifest,
+                resumes_dir=resumes_dir,
                 repo=repo,
                 reset_state=reset_state,
             )
@@ -126,8 +131,12 @@ class Orchestrator:
         Returns:
             Number of replies detected
         """
+        if self.dry_run:
+            logger.info("Reply detection skipped (dry-run mode)")
+            return 0
+        
         if not self.reply_detector:
-            logger.info("Reply detection skipped (dry-run or not configured)")
+            logger.info("Reply detection skipped (IMAP not configured)")
             return 0
 
         replies_detected = 0
@@ -248,6 +257,9 @@ class Orchestrator:
             prospect_repo = ProspectRepository(session)
             event_repo = MessageEventRepository(session)
 
+            # Merge prospect into this session to avoid detached instance errors
+            prospect = session.merge(prospect)
+
             # Get template variables
             variables = self.composer.get_template_variables_from_prospect(
                 prospect, self.sequences
@@ -303,10 +315,13 @@ class Orchestrator:
 
                 # Send email
                 if self.smtp_sender and resume_path:
+                    # Use custom resume filename
+                    resume_filename = "Resume-Neha_Sutariya.pdf"
                     success, sent_message_id, attachment_sha256, error = (
                         self.smtp_sender.send_with_attachment(
                             msg=msg,
                             attachment_path=resume_path,
+                            attachment_filename=resume_filename,
                             dry_run=self.dry_run,
                         )
                     )
@@ -419,14 +434,12 @@ class Orchestrator:
     def run_daily(
         self,
         prospects_file: Path | None = None,
-        manifest: ResumeManifest | None = None,
     ) -> dict[str, Any]:
         """
         Run daily automation workflow.
 
         Args:
             prospects_file: Optional path to prospects file (for ingestion)
-            manifest: Optional ResumeManifest (for ingestion)
 
         Returns:
             Summary dictionary with run statistics
@@ -440,11 +453,12 @@ class Orchestrator:
         }
 
         logger.info("Starting daily run", dry_run=self.dry_run)
+        summary["dry_run"] = self.dry_run
 
         # Step 1: Ingest prospects if file provided
-        if prospects_file and manifest:
+        if prospects_file:
             logger.info("Ingesting prospects", file=str(prospects_file))
-            created, updated, errors = self.ingest_prospects_file(prospects_file, manifest)
+            created, updated, errors = self.ingest_prospects_file(prospects_file)
             summary["ingested"]["created"] = created
             summary["ingested"]["updated"] = updated
             summary["ingested"]["errors"] = errors

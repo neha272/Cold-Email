@@ -14,7 +14,6 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.sqlite import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -54,8 +53,8 @@ class Prospect(Base):
 
     __tablename__ = "prospects"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -113,11 +112,11 @@ class MessageEvent(Base):
 
     __tablename__ = "message_events"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
-    prospect_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("prospects.id"), nullable=False, index=True
+    prospect_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("prospects.id"), nullable=False, index=True
     )
     event_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     occurred_at: Mapped[datetime] = mapped_column(

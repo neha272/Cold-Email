@@ -36,7 +36,7 @@ class ProspectRepository:
         self.session.add(prospect)
         return prospect
 
-    def get_by_id(self, prospect_id: uuid.UUID) -> Prospect | None:
+    def get_by_id(self, prospect_id: str | uuid.UUID) -> Prospect | None:
         """
         Get prospect by ID.
 
@@ -89,7 +89,7 @@ class ProspectRepository:
         self, cutoff_time: datetime, limit: int | None = None
     ) -> list[Prospect]:
         """
-        Get prospects that are due for action (next_action_at <= cutoff_time).
+        Get prospects that are due for action (next_action_at <= cutoff_time or NULL for NEW).
 
         Args:
             cutoff_time: Maximum next_action_at time
@@ -98,15 +98,30 @@ class ProspectRepository:
         Returns:
             List of eligible prospects
         """
+        # Filter for eligible prospects (not terminal status, not ERROR)
+        terminal_statuses = [
+            ProspectStatus.REPLIED.value,
+            ProspectStatus.BOUNCED.value,
+            ProspectStatus.UNSUBSCRIBED.value,
+            ProspectStatus.COMPLETED.value,
+        ]
+        
         query = (
             self.session.query(Prospect)
             .filter(
                 and_(
-                    Prospect.next_action_at <= cutoff_time,
-                    Prospect.is_eligible_for_sending(),
+                    or_(
+                        Prospect.next_action_at <= cutoff_time,
+                        and_(
+                            Prospect.next_action_at.is_(None),
+                            Prospect.status == ProspectStatus.NEW.value,
+                        ),
+                    ),
+                    Prospect.status.notin_(terminal_statuses),
+                    Prospect.status != ProspectStatus.ERROR.value,
                 )
             )
-            .order_by(Prospect.next_action_at.asc())
+            .order_by(Prospect.next_action_at.asc().nulls_first())
         )
 
         if limit:
@@ -129,7 +144,7 @@ class ProspectRepository:
 
     def update_status(
         self,
-        prospect_id: uuid.UUID,
+        prospect_id: str | uuid.UUID,
         status: ProspectStatus | str,
         error_message: str | None = None,
     ) -> Prospect | None:
@@ -239,7 +254,7 @@ class MessageEventRepository:
         return event
 
     def get_by_prospect_id(
-        self, prospect_id: uuid.UUID, limit: int | None = None
+        self, prospect_id: str | uuid.UUID, limit: int | None = None
     ) -> list[MessageEvent]:
         """
         Get all events for a prospect.
@@ -276,7 +291,7 @@ class MessageEventRepository:
             .first()
         )
 
-    def get_replies_for_prospect(self, prospect_id: uuid.UUID) -> list[MessageEvent]:
+    def get_replies_for_prospect(self, prospect_id: str | uuid.UUID) -> list[MessageEvent]:
         """
         Get all reply events for a prospect.
 

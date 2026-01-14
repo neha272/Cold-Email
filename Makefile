@@ -35,14 +35,14 @@ init-db: ## Initialize database
 	poetry run cold-emailer init-db
 
 run-dry: ## Run automation in dry-run mode
-	poetry run cold-emailer run --file data/prospects.csv --dry-run
+	poetry run cold-emailer run data/prospects.xlsx --dry-run
 
 run-live: ## Run automation in live mode (requires --confirm-send)
 	@echo "⚠️  This will send real emails!"
-	poetry run cold-emailer run --file data/prospects.csv --confirm-send
+	poetry run cold-emailer run data/prospects.xlsx --confirm-send
 
 ingest: ## Ingest prospects
-	poetry run cold-emailer ingest --file data/prospects.csv
+	poetry run cold-emailer ingest data/prospects.xlsx
 
 status: ## Show prospect status
 	poetry run cold-emailer status

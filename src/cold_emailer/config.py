@@ -136,8 +136,13 @@ def load_config(config_path: str = "config/settings.yaml") -> Settings:
     if not config_file.exists():
         raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
-    with open(config_file, "r", encoding="utf-8") as f:
-        config_data = yaml.safe_load(f)
+    try:
+        with open(config_file, "r", encoding="utf-8") as f:
+            config_data = yaml.safe_load(f)
+    except UnicodeDecodeError:
+        # Try with different encoding if UTF-8 fails
+        with open(config_file, "r", encoding="utf-8-sig") as f:
+            config_data = yaml.safe_load(f)
 
     # Simple template substitution for environment variables
     # This is a basic implementation - could be enhanced
@@ -191,5 +196,10 @@ def load_sequences(sequences_path: str = "config/sequences.yaml") -> dict[str, A
     if not seq_file.exists():
         raise FileNotFoundError(f"Sequences file not found: {sequences_path}")
 
-    with open(seq_file, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+    try:
+        with open(seq_file, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f)
+    except UnicodeDecodeError:
+        # Try with different encoding if UTF-8 fails
+        with open(seq_file, "r", encoding="utf-8-sig") as f:
+            return yaml.safe_load(f)

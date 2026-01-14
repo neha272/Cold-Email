@@ -1,5 +1,6 @@
 """Database initialization and session management."""
 
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Generator
 
@@ -67,6 +68,7 @@ def get_session_factory(engine: Engine) -> sessionmaker[Session]:
     return sessionmaker(bind=engine, expire_on_commit=False)
 
 
+@contextmanager
 def get_session(engine: Engine) -> Generator[Session, None, None]:
     """
     Get database session context manager.

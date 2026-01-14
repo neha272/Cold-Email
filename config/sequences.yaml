@@ -8,15 +8,15 @@ sequences:
       - step: 0
         template: "initial"
         wait_days: 3
-        subject: "Quick question about {{ company }}"
+        subject: "Application for {{ role_title }} position at {{ company }}"
       - step: 1
         template: "followup_1"
         wait_days: 5
-        subject: "Following up on my message"
+        subject: "Following up on my application for {{ role_title }} at {{ company }}"
       - step: 2
         template: "followup_2"
         wait_days: 7
-        subject: "Last follow-up"
+        subject: "Final follow-up: {{ role_title }} position at {{ company }}"
 
   aggressive:
     name: "Aggressive Sequence"
@@ -24,15 +24,15 @@ sequences:
       - step: 0
         template: "initial"
         wait_days: 2
-        subject: "Quick question about {{ company }}"
+        subject: "Application for {{ role_title }} position at {{ company }}"
       - step: 1
         template: "followup_1"
         wait_days: 3
-        subject: "Following up"
+        subject: "Following up on my application for {{ role_title }} at {{ company }}"
       - step: 2
         template: "followup_2"
         wait_days: 4
-        subject: "Final follow-up"
+        subject: "Final follow-up: {{ role_title }} position at {{ company }}"
 
   gentle:
     name: "Gentle Sequence"
@@ -40,12 +40,12 @@ sequences:
       - step: 0
         template: "initial"
         wait_days: 5
-        subject: "Quick question about {{ company }}"
+        subject: "Application for {{ role_title }} position at {{ company }}"
       - step: 1
         template: "followup_1"
         wait_days: 7
-        subject: "Following up on my message"
+        subject: "Following up on my application for {{ role_title }} at {{ company }}"
       - step: 2
         template: "followup_2"
         wait_days: 10
-        subject: "Last follow-up"
+        subject: "Final follow-up: {{ role_title }} position at {{ company }}"

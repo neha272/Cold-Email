@@ -91,18 +91,18 @@ A production-quality local cold-email automation tool (Hunter-like) built in Pyt
    ```
 
 5. **Prepare your data**
-   - Add prospects to `data/prospects.csv`
+   - Add prospects to `data/prospects.xlsx` (or CSV)
    - Add resumes to `assets/resumes/`
-   - Update `data/resume_manifest.csv` with resume mappings
+   - Update `data/resume_manifest.xlsx` with resume mappings
 
 6. **Test with dry-run**
    ```bash
-   poetry run cold-emailer run --file data/prospects.csv --dry-run
+   poetry run cold-emailer run --file data/prospects.xlsx --dry-run
    ```
 
 7. **Run live (with confirmation)**
    ```bash
-   poetry run cold-emailer run --file data/prospects.csv --confirm-send
+   poetry run cold-emailer run --file data/prospects.xlsx --confirm-send
    ```
 
 ## 📁 Project Structure
@@ -119,8 +119,8 @@ cold_emailer/
 │   └── sequences.yaml       # Follow-up sequence definitions
 │
 ├── data/
-│   ├── prospects.csv        # Input prospects file (example)
-│   ├── resume_manifest.csv  # Resume mapping and checksums
+│   ├── prospects.xlsx       # Input prospects file (example, Excel or CSV)
+│   ├── resume_manifest.xlsx # Resume mapping and checksums (Excel or CSV)
 │   └── state.db             # SQLite database (created at runtime)
 │
 ├── assets/
@@ -235,22 +235,28 @@ poetry run cold-emailer init-db
 ### Ingest Prospects
 
 ```bash
+poetry run cold-emailer ingest --file data/prospects.xlsx
+# or
 poetry run cold-emailer ingest --file data/prospects.csv
 ```
 
 Options:
-- `--manifest`: Path to resume manifest (default: `data/resume_manifest.csv`)
+- `--manifest`: Path to resume manifest (default: `data/resume_manifest.xlsx`)
 - `--reset-state`: Reset state for existing prospects
 
 ### Run Automation (Dry Run)
 
 ```bash
+poetry run cold-emailer run --file data/prospects.xlsx --dry-run
+# or
 poetry run cold-emailer run --file data/prospects.csv --dry-run
 ```
 
 ### Run Automation (Live)
 
 ```bash
+poetry run cold-emailer run --file data/prospects.xlsx --confirm-send
+# or
 poetry run cold-emailer run --file data/prospects.csv --confirm-send
 ```
 
@@ -268,7 +274,7 @@ poetry run cold-emailer export-events --out logs/events.jsonl
 
 ## 📝 Data Format
 
-### Prospects CSV
+### Prospects File (Excel or CSV)
 
 **Required columns:**
 - `email` - Recipient email address
@@ -283,14 +289,15 @@ poetry run cold-emailer export-events --out logs/events.jsonl
 - `sequence_id` - Follow-up sequence to use (default: "default")
 - `variables_json` - JSON string for custom template variables
 
-**Example:**
-```csv
-email,full_name,company,resume_id,role_title,sequence_id
-john@acme.com,John Doe,Acme Corp,RES-00042,Software Engineer,default
-jane@tech.com,Jane Smith,TechStart,RES-00042,Product Manager,aggressive
-```
+**Example (Excel/CSV):**
+| email | full_name | company | resume_id | role_title | sequence_id |
+|-------|-----------|---------|-----------|------------|-------------|
+| john@acme.com | John Doe | Acme Corp | RES-00042 | Software Engineer | default |
+| jane@tech.com | Jane Smith | TechStart | RES-00042 | Product Manager | aggressive |
 
-### Resume Manifest CSV
+**File:** `data/prospects.xlsx` (or `prospects.csv`)
+
+### Resume Manifest File (Excel or CSV)
 
 **Required columns:**
 - `resume_id` - Unique identifier
@@ -298,12 +305,13 @@ jane@tech.com,Jane Smith,TechStart,RES-00042,Product Manager,aggressive
 - `sha256` - SHA256 checksum (computed automatically if blank)
 - `version` - Optional version string
 
-**Example:**
-```csv
-resume_id,relative_path,sha256,version
-RES-00042,assets/resumes/RES-00042.pdf,abc123...,1.0
-RES-00043,assets/resumes/RES-00043.pdf,def456...,1.0
-```
+**Example (Excel/CSV):**
+| resume_id | relative_path | sha256 | version |
+|-----------|---------------|--------|---------|
+| RES-00042 | assets/resumes/RES-00042.pdf | (auto-computed) | 1.0 |
+| RES-00043 | assets/resumes/RES-00043.pdf | (auto-computed) | 1.0 |
+
+**File:** `data/resume_manifest.xlsx` (or `resume_manifest.csv`)
 
 ## 🛡️ Safety Features
 
@@ -347,7 +355,7 @@ Add to your crontab for daily runs:
 
 ```bash
 # Run at 9 AM daily
-0 9 * * * cd /path/to/cold-emailer && poetry run cold-emailer run --file data/prospects.csv --confirm-send >> logs/cron.log 2>&1
+0 9 * * * cd /path/to/cold-emailer && poetry run cold-emailer run --file data/prospects.xlsx --confirm-send >> logs/cron.log 2>&1
 ```
 
 ### Manual Run

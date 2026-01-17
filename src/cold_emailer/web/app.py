@@ -1,8 +1,17 @@
 """Flask web application for cold email campaign management."""
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
+
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    # Fallback for Python < 3.9
+    try:
+        from backports.zoneinfo import ZoneInfo
+    except ImportError:
+        ZoneInfo = None
 
 import yaml
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
@@ -637,7 +646,7 @@ def edit_sequence(sequence_id):
 
 @app.template_filter("datetime")
 def format_datetime(value):
-    """Format datetime for display."""
+    """Format datetime for display in Chicago timezone."""
     if value is None:
         return "N/A"
     if isinstance(value, str):
@@ -645,12 +654,31 @@ def format_datetime(value):
             value = datetime.fromisoformat(value)
         except Exception:
             return value
-    return value.strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Get Chicago timezone (UTC-6 or UTC-5 depending on DST)
+    if ZoneInfo:
+        chicago_tz = ZoneInfo("America/Chicago")
+    else:
+        # Fallback: Use fixed UTC-6 offset (CST)
+        chicago_tz = timezone(timedelta(hours=-6))
+    
+    # Assume UTC if datetime is naive, otherwise use its timezone
+    if value.tzinfo is None:
+        # Naive datetime - assume it's UTC
+        if ZoneInfo:
+            value = value.replace(tzinfo=ZoneInfo("UTC"))
+        else:
+            value = value.replace(tzinfo=timezone.utc)
+    
+    # Convert to Chicago timezone
+    local_time = value.astimezone(chicago_tz)
+    
+    return local_time.strftime("%Y-%m-%d %H:%M:%S %Z")
 
 
 @app.template_filter("timesince")
 def time_since(value):
-    """Human-readable time since."""
+    """Human-readable time since in Chicago timezone."""
     if value is None:
         return "Never"
     if isinstance(value, str):
@@ -659,8 +687,25 @@ def time_since(value):
         except Exception:
             return value
     
-    now = datetime.utcnow()
-    diff = now - value
+    # Get Chicago timezone
+    if ZoneInfo:
+        chicago_tz = ZoneInfo("America/Chicago")
+        utc_tz = ZoneInfo("UTC")
+    else:
+        # Fallback: Use fixed UTC-6 offset (CST)
+        chicago_tz = timezone(timedelta(hours=-6))
+        utc_tz = timezone.utc
+    
+    # Assume UTC if datetime is naive, otherwise use its timezone
+    if value.tzinfo is None:
+        # Naive datetime - assume it's UTC
+        value = value.replace(tzinfo=utc_tz)
+    
+    # Convert to Chicago timezone for comparison
+    local_value = value.astimezone(chicago_tz)
+    now = datetime.now(chicago_tz)
+    
+    diff = now - local_value
     
     if diff.days > 0:
         return f"{diff.days} day{'s' if diff.days != 1 else ''} ago"

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Add Sequence - Cold Email Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h2 mb-1">
+            <i class="bi bi-plus-circle"></i> Add New Sequence
+        </h1>
+        <p class="text-muted mb-0">Create a new email follow-up sequence</p>
+    </div>
+    <a href="{{ url_for('sequences_list') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to List
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Sequence Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="sequenceForm">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="sequence_id" class="form-label">Sequence ID <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="sequence_id" name="sequence_id" 
+                                   placeholder="e.g., custom_sequence" required>
+                            <div class="form-text">Unique identifier (lowercase, no spaces)</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="name" class="form-label">Sequence Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="name" name="name" 
+                                   placeholder="e.g., Custom Follow-up Sequence" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="2" 
+                                  placeholder="Brief description of this sequence"></textarea>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Sequence Steps</h5>
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="addStep()">
+                            <i class="bi bi-plus"></i> Add Step
+                        </button>
+                    </div>
+                    
+                    <div id="stepsContainer">
+                        <!-- Steps will be added here dynamically -->
+                    </div>
+                    
+                    <input type="hidden" id="step_count" name="step_count" value="0">
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                        <a href="{{ url_for('sequences_list') }}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Create Sequence
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let stepIndex = 0;
+    const availableTemplates = {{ available_templates|tojson }};
+    
+    function addStep() {
+        const container = document.getElementById('stepsContainer');
+        const stepDiv = document.createElement('div');
+        stepDiv.className = 'card mb-3 step-item';
+        stepDiv.innerHTML = `
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Step ${stepIndex}</h6>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeStep(this)">
+                        <i class="bi bi-trash"></i> Remove
+                    </button>
+                </div>
+                <div class="row">
+                    <div class="col-md-2">
+                        <label class="form-label">Step Number</label>
+                        <input type="number" class="form-control" name="step_${stepIndex}_num" 
+                               value="${stepIndex}" min="0" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Template</label>
+                        <select class="form-select" name="step_${stepIndex}_template" required>
+                            <option value="">Select template...</option>
+                            ${availableTemplates.map(t => `<option value="${t}">${t}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Wait Days</label>
+                        <input type="number" class="form-control" name="step_${stepIndex}_wait_days" 
+                               value="0" min="0" required>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">Subject Line</label>
+                        <input type="text" class="form-control" name="step_${stepIndex}_subject" 
+                               placeholder="e.g., Application for {{ role_title }} at {{ company }}" required>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.appendChild(stepDiv);
+        document.getElementById('step_count').value = ++stepIndex;
+    }
+    
+    function removeStep(btn) {
+        btn.closest('.step-item').remove();
+        document.getElementById('step_count').value = document.querySelectorAll('.step-item').length;
+    }
+    
+    // Add first step on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        addStep();
+    });
+</script>
+{% endblock %}

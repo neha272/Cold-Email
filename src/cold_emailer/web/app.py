@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+import yaml
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
 from werkzeug.utils import secure_filename
 
@@ -29,8 +30,17 @@ app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
 # Load configuration
 settings = load_config(CONFIG_DIR / "settings.yaml")
 env_settings = EnvSettings()
-sequences = load_sequences(CONFIG_DIR / "sequences.yaml")
+sequences_data = load_sequences(CONFIG_DIR / "sequences.yaml")
+sequences = sequences_data.get("sequences", {}) if isinstance(sequences_data, dict) else {}
 engine = create_database_engine(settings.database.path, echo=settings.database.echo)
+
+
+def reload_sequences():
+    """Reload sequences from file."""
+    global sequences
+    sequences_data = load_sequences(CONFIG_DIR / "sequences.yaml")
+    sequences = sequences_data.get("sequences", {}) if isinstance(sequences_data, dict) else {}
+    return sequences
 
 
 @app.route("/")
@@ -413,6 +423,205 @@ def settings_page():
         settings=settings,
         env_settings=env_settings,
         sequences=sequences,
+    )
+
+
+@app.route("/sequences")
+def sequences_list():
+    """List all email sequences."""
+    return render_template(
+        "sequences.html",
+        sequences=sequences,
+    )
+
+
+@app.route("/sequences/<sequence_id>")
+def sequence_detail(sequence_id):
+    """View and edit a specific sequence."""
+    if sequence_id not in sequences:
+        flash("Sequence not found", "error")
+        return redirect(url_for("sequences_list"))
+    
+    sequence = sequences[sequence_id]
+    sequence["id"] = sequence_id
+    
+    # Get available templates
+    templates_dir = WORKSPACE_ROOT / settings.paths.templates_dir
+    available_templates = []
+    if templates_dir.exists():
+        for template_file in templates_dir.glob("*.md"):
+            available_templates.append(template_file.stem)
+    
+    return render_template(
+        "sequence_detail.html",
+        sequence=sequence,
+        sequence_id=sequence_id,
+        available_templates=available_templates,
+    )
+
+
+@app.route("/sequences/add", methods=["GET", "POST"])
+def add_sequence():
+    """Add a new email sequence."""
+    templates_dir = WORKSPACE_ROOT / settings.paths.templates_dir
+    available_templates = []
+    if templates_dir.exists():
+        for template_file in templates_dir.glob("*.md"):
+            available_templates.append(template_file.stem)
+    
+    if request.method == "POST":
+        try:
+            sequence_id = request.form.get("sequence_id", "").strip().lower().replace(" ", "_")
+            name = request.form.get("name", "").strip()
+            description = request.form.get("description", "").strip()
+            
+            if not sequence_id:
+                flash("Sequence ID is required", "error")
+                return render_template("add_sequence.html", available_templates=available_templates)
+            if not name:
+                flash("Sequence name is required", "error")
+                return render_template("add_sequence.html", available_templates=available_templates)
+            if sequence_id in sequences:
+                flash(f"Sequence ID '{sequence_id}' already exists", "error")
+                return render_template("add_sequence.html", available_templates=available_templates)
+            
+            # Parse steps from form
+            steps = []
+            step_count = int(request.form.get("step_count", 0))
+            
+            for i in range(step_count):
+                step_num = request.form.get(f"step_{i}_num", "")
+                template = request.form.get(f"step_{i}_template", "")
+                wait_days = request.form.get(f"step_{i}_wait_days", "0")
+                subject = request.form.get(f"step_{i}_subject", "")
+                
+                if step_num and template:
+                    try:
+                        steps.append({
+                            "step": int(step_num),
+                            "template": template,
+                            "wait_days": int(wait_days) if wait_days else 0,
+                            "subject": subject,
+                        })
+                    except ValueError:
+                        continue
+            
+            if not steps:
+                flash("At least one step is required", "error")
+                return render_template("add_sequence.html", available_templates=available_templates)
+            
+            # Load existing sequences
+            sequences_path = CONFIG_DIR / "sequences.yaml"
+            with open(sequences_path, "r") as f:
+                sequences_data = yaml.safe_load(f) or {}
+            
+            # Add new sequence
+            sequences_data.setdefault("sequences", {})[sequence_id] = {
+                "name": name,
+                "description": description,
+                "steps": sorted(steps, key=lambda x: x["step"]),
+            }
+            
+            # Save to file
+            with open(sequences_path, "w") as f:
+                yaml.dump(sequences_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+            
+            # Reload sequences
+            reload_sequences()
+            
+            flash(f"Sequence '{name}' added successfully!", "success")
+            return redirect(url_for("sequences_list"))
+        
+        except Exception as e:
+            logger.error("Failed to add sequence", error=str(e))
+            flash(f"Error adding sequence: {str(e)}", "error")
+            return render_template("add_sequence.html", available_templates=available_templates)
+    
+    return render_template("add_sequence.html", available_templates=available_templates)
+
+
+@app.route("/sequences/<sequence_id>/edit", methods=["GET", "POST"])
+def edit_sequence(sequence_id):
+    """Edit an existing email sequence."""
+    if sequence_id not in sequences:
+        flash("Sequence not found", "error")
+        return redirect(url_for("sequences_list"))
+    
+    templates_dir = WORKSPACE_ROOT / settings.paths.templates_dir
+    available_templates = []
+    if templates_dir.exists():
+        for template_file in templates_dir.glob("*.md"):
+            available_templates.append(template_file.stem)
+    
+    if request.method == "POST":
+        try:
+            name = request.form.get("name", "").strip()
+            description = request.form.get("description", "").strip()
+            
+            if not name:
+                flash("Sequence name is required", "error")
+                return redirect(url_for("edit_sequence", sequence_id=sequence_id))
+            
+            # Parse steps from form
+            steps = []
+            step_count = int(request.form.get("step_count", 0))
+            
+            for i in range(step_count):
+                step_num = request.form.get(f"step_{i}_num", "")
+                template = request.form.get(f"step_{i}_template", "")
+                wait_days = request.form.get(f"step_{i}_wait_days", "0")
+                subject = request.form.get(f"step_{i}_subject", "")
+                
+                if step_num and template:
+                    try:
+                        steps.append({
+                            "step": int(step_num),
+                            "template": template,
+                            "wait_days": int(wait_days) if wait_days else 0,
+                            "subject": subject,
+                        })
+                    except ValueError:
+                        continue
+            
+            if not steps:
+                flash("At least one step is required", "error")
+                return redirect(url_for("edit_sequence", sequence_id=sequence_id))
+            
+            # Load existing sequences
+            sequences_path = CONFIG_DIR / "sequences.yaml"
+            import yaml
+            with open(sequences_path, "r") as f:
+                sequences_data = yaml.safe_load(f) or {}
+            
+            # Update sequence
+            sequences_data.setdefault("sequences", {})[sequence_id] = {
+                "name": name,
+                "description": description,
+                "steps": sorted(steps, key=lambda x: x["step"]),
+            }
+            
+            # Save to file
+            with open(sequences_path, "w") as f:
+                yaml.dump(sequences_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+            
+            # Reload sequences
+            reload_sequences()
+            
+            flash(f"Sequence '{name}' updated successfully!", "success")
+            return redirect(url_for("sequences_list"))
+        
+        except Exception as e:
+            logger.error("Failed to update sequence", error=str(e))
+            flash(f"Error updating sequence: {str(e)}", "error")
+            return redirect(url_for("edit_sequence", sequence_id=sequence_id))
+    
+    sequence = sequences[sequence_id]
+    sequence["id"] = sequence_id
+    return render_template(
+        "edit_sequence.html",
+        sequence=sequence,
+        sequence_id=sequence_id,
+        available_templates=available_templates,
     )
 
 

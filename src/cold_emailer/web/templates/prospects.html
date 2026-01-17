@@ -4,15 +4,18 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h2">
-        <i class="bi bi-people"></i> Prospects
-    </h1>
+    <div>
+        <h1 class="h2 mb-1">
+            <i class="bi bi-people"></i> Prospects
+        </h1>
+        <p class="text-muted mb-0">Manage your email campaign prospects</p>
+    </div>
     <div class="d-flex gap-2 align-items-center">
-        <span class="badge bg-secondary fs-6">{{ prospects|length }} of {{ total_count }} total</span>
-        <a href="{{ url_for('import_prospects') }}" class="btn btn-outline-primary btn-sm">
+        <span class="badge bg-secondary fs-6 px-3 py-2">{{ prospects|length }} of {{ total_count }} total</span>
+        <a href="{{ url_for('import_prospects') }}" class="btn btn-outline-primary">
             <i class="bi bi-upload"></i> Import
         </a>
-        <a href="{{ url_for('add_prospect') }}" class="btn btn-primary btn-sm">
+        <a href="{{ url_for('add_prospect') }}" class="btn btn-primary">
             <i class="bi bi-person-plus"></i> Add Prospect
         </a>
     </div>

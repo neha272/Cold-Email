@@ -4,9 +4,12 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h2">
-        <i class="bi bi-person-plus"></i> Add New Prospect
-    </h1>
+    <div>
+        <h1 class="h2 mb-1">
+            <i class="bi bi-person-plus"></i> Add New Prospect
+        </h1>
+        <p class="text-muted mb-0">Create a new prospect for your email campaign</p>
+    </div>
     <a href="{{ url_for('prospects_list') }}" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Back to List
     </a>
@@ -58,15 +61,27 @@
                     
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="sequence_id" class="form-label">Email Sequence</label>
-                            <select class="form-select" id="sequence_id" name="sequence_id">
+                            <label for="sequence_id" class="form-label">
+                                Email Sequence 
+                                <a href="{{ url_for('sequences_list') }}" class="text-decoration-none" target="_blank" title="Manage sequences">
+                                    <i class="bi bi-gear"></i>
+                                </a>
+                            </label>
+                            <select class="form-select" id="sequence_id" name="sequence_id" required>
                                 {% for seq_id, seq in sequences.items() %}
                                     <option value="{{ seq_id }}" 
                                             {% if prospect.get('sequence_id', 'default') == seq_id %}selected{% endif %}>
-                                        {{ seq.name }} - {{ seq.description }}
+                                        {{ seq.name }}
+                                        {% if seq.description %} - {{ seq.description }}{% endif %}
+                                        ({{ seq.steps|length }} steps)
                                     </option>
                                 {% endfor %}
                             </select>
+                            <div class="form-text">
+                                <a href="{{ url_for('sequences_list') }}" class="text-decoration-none">
+                                    <i class="bi bi-list-ol"></i> View all sequences
+                                </a>
+                            </div>
                         </div>
                         
                         <div class="col-md-6 mb-3">

@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Sequence - Cold Email Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h2 mb-1">
+            <i class="bi bi-pencil-square"></i> Edit Sequence
+        </h1>
+        <p class="text-muted mb-0">Update email follow-up sequence: {{ sequence.name }}</p>
+    </div>
+    <a href="{{ url_for('sequences_list') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to List
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Sequence Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="sequenceForm">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label">Sequence ID</label>
+                            <input type="text" class="form-control" value="{{ sequence_id }}" disabled>
+                            <div class="form-text">Sequence ID cannot be changed</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="name" class="form-label">Sequence Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="name" name="name" 
+                                   value="{{ sequence.name }}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="2">{{ sequence.description or '' }}</textarea>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Sequence Steps</h5>
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="addStep()">
+                            <i class="bi bi-plus"></i> Add Step
+                        </button>
+                    </div>
+                    
+                    <div id="stepsContainer">
+                        <!-- Steps will be populated from existing sequence -->
+                    </div>
+                    
+                    <input type="hidden" id="step_count" name="step_count" value="{{ sequence.steps|length }}">
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                        <a href="{{ url_for('sequences_list') }}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Update Sequence
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let stepIndex = 0;
+    const availableTemplates = {{ available_templates|tojson }};
+    const existingSteps = {{ sequence.steps|tojson }};
+    
+    function addStep(stepData = null) {
+        const container = document.getElementById('stepsContainer');
+        const stepDiv = document.createElement('div');
+        stepDiv.className = 'card mb-3 step-item';
+        
+        const stepNum = stepData ? stepData.step : stepIndex;
+        const template = stepData ? stepData.template : '';
+        const waitDays = stepData ? stepData.wait_days : 0;
+        const subject = stepData ? stepData.subject : '';
+        
+        stepDiv.innerHTML = `
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Step ${stepNum}</h6>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeStep(this)">
+                        <i class="bi bi-trash"></i> Remove
+                    </button>
+                </div>
+                <div class="row">
+                    <div class="col-md-2">
+                        <label class="form-label">Step Number</label>
+                        <input type="number" class="form-control" name="step_${stepIndex}_num" 
+                               value="${stepNum}" min="0" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Template</label>
+                        <select class="form-select" name="step_${stepIndex}_template" required>
+                            <option value="">Select template...</option>
+                            ${availableTemplates.map(t => 
+                                `<option value="${t}" ${t === template ? 'selected' : ''}>${t}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Wait Days</label>
+                        <input type="number" class="form-control" name="step_${stepIndex}_wait_days" 
+                               value="${waitDays}" min="0" required>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">Subject Line</label>
+                        <input type="text" class="form-control" name="step_${stepIndex}_subject" 
+                               value="${subject}" placeholder="e.g., Application for {{ role_title }} at {{ company }}" required>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.appendChild(stepDiv);
+        stepIndex++;
+    }
+    
+    function removeStep(btn) {
+        btn.closest('.step-item').remove();
+        document.getElementById('step_count').value = document.querySelectorAll('.step-item').length;
+    }
+    
+    // Load existing steps on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        if (existingSteps && existingSteps.length > 0) {
+            existingSteps.forEach(step => {
+                addStep(step);
+            });
+        } else {
+            addStep();
+        }
+    });
+</script>
+{% endblock %}

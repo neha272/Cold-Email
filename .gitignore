@@ -46,6 +46,10 @@ data/state.db-journal
 *.db
 *.db-journal
 
+# Project Data and Assets
+data/
+assets/
+
 # Logs
 logs/
 *.log

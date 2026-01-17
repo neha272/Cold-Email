@@ -3,7 +3,7 @@
 
 sequences:
   default:
-    name: "Default Sequence"
+    name: "Testing Sequence"
     steps:
       - step: 0
         template: "initial"

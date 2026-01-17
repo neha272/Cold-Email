@@ -4,14 +4,17 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h2">
-        <i class="bi bi-speedometer2"></i> Dashboard
-    </h1>
     <div>
-        <button class="btn btn-outline-primary me-2" onclick="checkReplies()">
+        <h1 class="h2 mb-1">
+            <i class="bi bi-speedometer2"></i> Dashboard
+        </h1>
+        <p class="text-muted mb-0">Monitor and manage your email campaigns</p>
+    </div>
+    <div class="btn-group">
+        <button class="btn btn-outline-primary" onclick="checkReplies()">
             <i class="bi bi-arrow-repeat"></i> Check Replies
         </button>
-        <button class="btn btn-warning me-2" onclick="runCampaign(true)">
+        <button class="btn btn-warning" onclick="runCampaign(true)">
             <i class="bi bi-play-circle"></i> Dry Run
         </button>
         <button class="btn btn-success" onclick="runCampaign(false)">
@@ -27,11 +30,12 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="text-muted mb-2">Total Prospects</h6>
+                        <h6 class="text-muted mb-2 text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">Total Prospects</h6>
                         <h2 class="mb-0">{{ total_prospects }}</h2>
+                        <small class="text-muted">All prospects</small>
                     </div>
                     <div class="text-primary">
-                        <i class="bi bi-people fs-1"></i>
+                        <i class="bi bi-people" style="font-size: 3rem; opacity: 0.3;"></i>
                     </div>
                 </div>
             </div>
@@ -43,11 +47,12 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="text-muted mb-2">Replied</h6>
-                        <h2 class="mb-0">{{ status_counts.get('REPLIED', 0) }}</h2>
+                        <h6 class="text-muted mb-2 text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">Replied</h6>
+                        <h2 class="mb-0" style="color: var(--success-color);">{{ status_counts.get('REPLIED', 0) }}</h2>
+                        <small class="text-muted">Got responses</small>
                     </div>
                     <div class="text-success">
-                        <i class="bi bi-check-circle fs-1"></i>
+                        <i class="bi bi-check-circle" style="font-size: 3rem; opacity: 0.3;"></i>
                     </div>
                 </div>
             </div>
@@ -59,11 +64,12 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="text-muted mb-2">In Progress</h6>
-                        <h2 class="mb-0">{{ status_counts.get('SENT_INITIAL', 0) + status_counts.get('FOLLOWUP_1_SENT', 0) + status_counts.get('FOLLOWUP_2_SENT', 0) }}</h2>
+                        <h6 class="text-muted mb-2 text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">In Progress</h6>
+                        <h2 class="mb-0" style="color: var(--info-color);">{{ status_counts.get('SENT_INITIAL', 0) + status_counts.get('FOLLOWUP_1_SENT', 0) + status_counts.get('FOLLOWUP_2_SENT', 0) }}</h2>
+                        <small class="text-muted">Active campaigns</small>
                     </div>
                     <div class="text-info">
-                        <i class="bi bi-hourglass-split fs-1"></i>
+                        <i class="bi bi-hourglass-split" style="font-size: 3rem; opacity: 0.3;"></i>
                     </div>
                 </div>
             </div>
@@ -75,11 +81,12 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="text-muted mb-2">Due to Send</h6>
-                        <h2 class="mb-0">{{ due_prospects_count }}</h2>
+                        <h6 class="text-muted mb-2 text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">Due to Send</h6>
+                        <h2 class="mb-0" style="color: var(--warning-color);">{{ due_prospects_count }}</h2>
+                        <small class="text-muted">Ready now</small>
                     </div>
                     <div class="text-warning">
-                        <i class="bi bi-clock-history fs-1"></i>
+                        <i class="bi bi-clock-history" style="font-size: 3rem; opacity: 0.3;"></i>
                     </div>
                 </div>
             </div>

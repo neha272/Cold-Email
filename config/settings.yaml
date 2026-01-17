@@ -35,7 +35,7 @@ safety:
 # Paths
 paths:
   prospects_dir: "data"
-  resumes_dir: "assets/resumes"
+  resumes_dir: "data/resumes"
   templates_dir: "templates"
   logs_dir: "logs"
 

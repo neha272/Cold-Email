@@ -336,9 +336,32 @@ class Orchestrator:
                 )
 
                 # Validate resume attachment
-                from cold_emailer.attachments import validate_resume_file
+                from cold_emailer.attachments import validate_resume_file, find_resume_file
 
                 resume_path = Path(prospect.resume_path) if prospect.resume_path else None
+                
+                # If resume_path is not set, try to find it by resume_id
+                if not resume_path and prospect.resume_id:
+                    resumes_dir = Path(self.settings.paths.resumes_dir)
+                    if not resumes_dir.is_absolute():
+                        # Resolve relative to current working directory
+                        resumes_dir = Path.cwd() / resumes_dir
+                    is_valid, error_msg, resume_info = find_resume_file(prospect.resume_id, resumes_dir)
+                    if is_valid and resume_info:
+                        resume_path = Path(resume_info.get("absolute_path"))
+                        # Update prospect with found resume_path if it was missing
+                        if not prospect.resume_path:
+                            prospect.resume_path = str(resume_path)
+                            prospect.resume_sha256 = resume_info.get("sha256")
+                            session.flush()
+                    else:
+                        logger.warning(
+                            "Could not find resume file by resume_id",
+                            prospect_id=str(prospect.id),
+                            resume_id=prospect.resume_id,
+                            error=error_msg,
+                        )
+                
                 if resume_path:
                     is_valid, error = validate_resume_file(resume_path, prospect.resume_sha256)
                     if not is_valid:
@@ -359,18 +382,37 @@ class Orchestrator:
                         prospect_repo.update_status(prospect.id, ProspectStatus.ERROR)
                         prospect_repo.update_next_action(prospect.id, None)
                         return False, None
+                else:
+                    logger.error(
+                        "Resume path not found and could not locate by resume_id",
+                        prospect_id=str(prospect.id),
+                        resume_id=prospect.resume_id,
+                    )
+                    event_repo.create(
+                        {
+                            "prospect_id": prospect.id,
+                            "event_type": MessageEventType.SEND_FAIL.value,
+                            "subject": subject,
+                            "template_id": template_name,
+                            "meta_json": '{"error": "Resume file not found: None"}',
+                        }
+                    )
+                    prospect_repo.update_status(prospect.id, ProspectStatus.ERROR)
+                    prospect_repo.update_next_action(prospect.id, None)
+                    return False, None
 
-                # Log send attempt
+                # Log send attempt (only in live mode, not dry-run)
                 message_id = msg.get("Message-ID", "").strip("<>")
-                event_repo.create(
-                    {
-                        "prospect_id": prospect.id,
-                        "event_type": MessageEventType.SEND_ATTEMPT.value,
-                        "subject": subject,
-                        "template_id": template_name,
-                        "outbound_message_id": message_id,
-                    }
-                )
+                if not self.dry_run:
+                    event_repo.create(
+                        {
+                            "prospect_id": prospect.id,
+                            "event_type": MessageEventType.SEND_ATTEMPT.value,
+                            "subject": subject,
+                            "template_id": template_name,
+                            "outbound_message_id": message_id,
+                        }
+                    )
 
                 # Send email
                 if self.smtp_sender and resume_path:
@@ -397,59 +439,70 @@ class Orchestrator:
                     )
 
                 if success:
-                    # Update prospect state
-                    if step == 0:
-                        new_status = ProspectStatus.SENT_INITIAL
-                    elif step == 1:
-                        new_status = ProspectStatus.FOLLOWUP_1_SENT
-                    elif step == 2:
-                        new_status = ProspectStatus.FOLLOWUP_2_SENT
-                    else:
-                        new_status = ProspectStatus.COMPLETED
-
-                    # Update prospect state - ensure changes are flushed
-                    updated_prospect = prospect_repo.update_status(prospect.id, new_status)
-                    prospect_repo.update_followup_step(prospect.id, step + 1)
-                    prospect_repo.update_next_action(prospect.id, None)  # Will be set by sequence
-                    prospect_repo.update_last_sent_at(prospect.id)  # Update last sent timestamp
-
-                    # Store thread key
-                    if sent_message_id:
-                        if updated_prospect:
-                            updated_prospect.thread_key = sent_message_id
+                    # In dry-run mode, don't update database state - only log what would happen
+                    if not self.dry_run:
+                        # Update prospect state
+                        if step == 0:
+                            new_status = ProspectStatus.SENT_INITIAL
+                        elif step == 1:
+                            new_status = ProspectStatus.FOLLOWUP_1_SENT
+                        elif step == 2:
+                            new_status = ProspectStatus.FOLLOWUP_2_SENT
                         else:
-                            # Fallback: update directly
-                            prospect = session.get(type(prospect), prospect.id)
-                            if prospect:
-                                prospect.thread_key = sent_message_id
-                    
-                    # Flush changes to ensure they're persisted
-                    session.flush()
+                            new_status = ProspectStatus.COMPLETED
 
-                    # Log success
-                    event_repo.create(
-                        {
-                            "prospect_id": prospect.id,
-                            "event_type": MessageEventType.SEND_SUCCESS.value,
-                            "subject": subject,
-                            "template_id": template_name,
-                            "outbound_message_id": sent_message_id,
-                            "attachment_sha256": attachment_sha256,
-                        }
-                    )
+                        # Update prospect state - ensure changes are flushed
+                        updated_prospect = prospect_repo.update_status(prospect.id, new_status)
+                        prospect_repo.update_followup_step(prospect.id, step + 1)
+                        prospect_repo.update_next_action(prospect.id, None)  # Will be set by sequence
+                        prospect_repo.update_last_sent_at(prospect.id)  # Update last sent timestamp
 
-                    # Update next action time based on sequence
-                    step_config = self.composer.get_sequence_step(
-                        self.sequences, prospect.sequence_id, step + 1
-                    )
-                    if step_config:
-                        wait_days = step_config.get("wait_days", 0)
-                        next_action = datetime.utcnow() + timedelta(days=wait_days)
-                        prospect_repo.update_next_action(prospect.id, next_action)
+                        # Store thread key
+                        if sent_message_id:
+                            if updated_prospect:
+                                updated_prospect.thread_key = sent_message_id
+                            else:
+                                # Fallback: update directly
+                                prospect = session.get(type(prospect), prospect.id)
+                                if prospect:
+                                    prospect.thread_key = sent_message_id
+                        
+                        # Flush changes to ensure they're persisted
+                        session.flush()
+
+                        # Log success
+                        event_repo.create(
+                            {
+                                "prospect_id": prospect.id,
+                                "event_type": MessageEventType.SEND_SUCCESS.value,
+                                "subject": subject,
+                                "template_id": template_name,
+                                "outbound_message_id": sent_message_id,
+                                "attachment_sha256": attachment_sha256,
+                            }
+                        )
+
+                        # Update next action time based on sequence
+                        step_config = self.composer.get_sequence_step(
+                            self.sequences, prospect.sequence_id, step + 1
+                        )
+                        if step_config:
+                            wait_days = step_config.get("wait_days", 0)
+                            next_action = datetime.utcnow() + timedelta(days=wait_days)
+                            prospect_repo.update_next_action(prospect.id, next_action)
+                        else:
+                            # No more steps, mark as completed
+                            prospect_repo.update_status(prospect.id, ProspectStatus.COMPLETED)
+                            prospect_repo.update_next_action(prospect.id, None)
                     else:
-                        # No more steps, mark as completed
-                        prospect_repo.update_status(prospect.id, ProspectStatus.COMPLETED)
-                        prospect_repo.update_next_action(prospect.id, None)
+                        # Dry-run mode: only log what would happen (don't create events or update state)
+                        logger.info(
+                            "Dry-run: Would send email",
+                            prospect_id=str(prospect.id),
+                            step=step,
+                            subject=subject,
+                            template=template_name,
+                        )
 
                     self.daily_sent_count += 1
                     self.last_send_time = datetime.utcnow()

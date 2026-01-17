@@ -133,7 +133,7 @@
                                             <i class="bi bi-info-circle"></i> {{ event.event_type }}
                                         {% endif %}
                                     </h6>
-                                    <small class="text-muted">{{ event.created_at|timesince }}</small>
+                                    <small class="text-muted">{{ event.occurred_at|timesince }}</small>
                                 </div>
                                 <p class="mb-1 small">{{ event.subject or 'No subject' }}</p>
                             </div>

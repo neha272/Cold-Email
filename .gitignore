@@ -46,9 +46,8 @@ data/state.db-journal
 *.db
 *.db-journal
 
-# Project Data and Assets
+# Project Data (includes resumes, database, Excel files)
 data/
-assets/
 
 # Logs
 logs/

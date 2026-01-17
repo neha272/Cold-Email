@@ -129,7 +129,7 @@
                                                     {{ event.event_type }}
                                                 {% endif %}
                                             </h6>
-                                            <small class="text-muted">{{ event.created_at|timesince }}</small>
+                                            <small class="text-muted">{{ event.occurred_at|timesince }}</small>
                                         </div>
                                         <p class="mb-1"><strong>Subject:</strong> {{ event.subject or 'N/A' }}</p>
                                         {% if event.template_id %}

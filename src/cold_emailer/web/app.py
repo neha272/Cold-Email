@@ -31,15 +31,21 @@ app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
 settings = load_config(CONFIG_DIR / "settings.yaml")
 env_settings = EnvSettings()
 sequences_data = load_sequences(CONFIG_DIR / "sequences.yaml")
-sequences = sequences_data.get("sequences", {}) if isinstance(sequences_data, dict) else {}
+# Keep full structure for orchestrator (it expects {"sequences": {...}})
+sequences = sequences_data if isinstance(sequences_data, dict) else {"sequences": {}}
+# Extract just sequences dict for templates
+sequences_dict = sequences.get("sequences", {}) if isinstance(sequences, dict) else {}
 engine = create_database_engine(settings.database.path, echo=settings.database.echo)
 
 
 def reload_sequences():
     """Reload sequences from file."""
-    global sequences
+    global sequences, sequences_dict
     sequences_data = load_sequences(CONFIG_DIR / "sequences.yaml")
-    sequences = sequences_data.get("sequences", {}) if isinstance(sequences_data, dict) else {}
+    # Keep full structure for orchestrator
+    sequences = sequences_data if isinstance(sequences_data, dict) else {"sequences": {}}
+    # Extract just sequences dict for templates
+    sequences_dict = sequences.get("sequences", {}) if isinstance(sequences, dict) else {}
     return sequences
 
 
@@ -131,33 +137,37 @@ def add_prospect():
                 # Validate required fields
                 if not prospect_data["email"]:
                     flash("Email is required", "error")
-                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences)
+                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict)
                 if not prospect_data["full_name"]:
                     flash("Full name is required", "error")
-                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences)
+                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict)
                 if not prospect_data["company"]:
                     flash("Company is required", "error")
-                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences)
+                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict)
                 if not prospect_data["resume_id"]:
                     flash("Resume ID is required", "error")
-                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences)
+                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict)
                 
                 # Check if prospect already exists
                 existing = prospect_repo.get_by_email(prospect_data["email"])
                 if existing:
                     flash(f"Prospect with email {prospect_data['email']} already exists", "error")
-                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences)
+                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict)
                 
                 # Validate resume file exists
                 from cold_emailer.attachments import find_resume_file
                 resumes_dir = WORKSPACE_ROOT / settings.paths.resumes_dir
-                is_valid, resume_path, resume_info = find_resume_file(prospect_data["resume_id"], resumes_dir)
+                is_valid, error_msg, resume_info = find_resume_file(prospect_data["resume_id"], resumes_dir)
                 if not is_valid:
-                    flash(f"Resume file not found: {prospect_data['resume_id']}", "error")
-                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences)
+                    flash(f"Resume file not found: {error_msg or prospect_data['resume_id']}", "error")
+                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict)
                 
-                prospect_data["resume_path"] = str(resume_path)
-                prospect_data["resume_sha256"] = resume_info.get("sha256") if resume_info else None
+                if not resume_info:
+                    flash(f"Resume info not found: {prospect_data['resume_id']}", "error")
+                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict)
+                
+                prospect_data["resume_path"] = str(resume_info.get("absolute_path"))
+                prospect_data["resume_sha256"] = resume_info.get("sha256")
                 prospect_data["status"] = ProspectStatus.NEW.value
                 prospect_data["followup_step"] = 0
                 prospect_data["next_action_at"] = None
@@ -171,10 +181,10 @@ def add_prospect():
         except Exception as e:
             logger.error("Failed to add prospect", error=str(e))
             flash(f"Error adding prospect: {str(e)}", "error")
-            return render_template("add_prospect.html", prospect=request.form.to_dict(), sequences=sequences)
+            return render_template("add_prospect.html", prospect=request.form.to_dict(), sequences=sequences_dict)
     
     # GET request - show form
-    return render_template("add_prospect.html", prospect={}, sequences=sequences)
+    return render_template("add_prospect.html", prospect={}, sequences=sequences_dict)
 
 
 @app.route("/prospects/<prospect_id>/edit", methods=["GET", "POST"])
@@ -204,16 +214,16 @@ def edit_prospect(prospect_id):
                 # Validate required fields
                 if not prospect_data["email"]:
                     flash("Email is required", "error")
-                    return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences)
+                    return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences_dict)
                 if not prospect_data["full_name"]:
                     flash("Full name is required", "error")
-                    return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences)
+                    return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences_dict)
                 if not prospect_data["company"]:
                     flash("Company is required", "error")
-                    return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences)
+                    return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences_dict)
                 if not prospect_data["resume_id"]:
                     flash("Resume ID is required", "error")
-                    return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences)
+                    return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences_dict)
                 
                 # Update resume if changed
                 if prospect_data["resume_id"] != prospect.resume_id:
@@ -222,7 +232,7 @@ def edit_prospect(prospect_id):
                     is_valid, resume_path, resume_info = find_resume_file(prospect_data["resume_id"], resumes_dir)
                     if not is_valid:
                         flash(f"Resume file not found: {prospect_data['resume_id']}", "error")
-                        return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences)
+                        return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences_dict)
                     prospect_data["resume_path"] = str(resume_path)
                     prospect_data["resume_sha256"] = resume_info.get("sha256") if resume_info else None
                 
@@ -245,10 +255,10 @@ def edit_prospect(prospect_id):
             except Exception as e:
                 logger.error("Failed to update prospect", error=str(e))
                 flash(f"Error updating prospect: {str(e)}", "error")
-                return render_template("edit_prospect.html", prospect=prospect, prospect_data=request.form.to_dict(), sequences=sequences)
+                return render_template("edit_prospect.html", prospect=prospect, prospect_data=request.form.to_dict(), sequences=sequences_dict)
         
         # GET request - show form
-        return render_template("edit_prospect.html", prospect=prospect, prospect_data={}, sequences=sequences)
+        return render_template("edit_prospect.html", prospect=prospect, prospect_data={}, sequences=sequences_dict)
 
 
 @app.route("/prospects/import", methods=["GET", "POST"])
@@ -393,8 +403,8 @@ def stats():
         from collections import defaultdict
         events_by_date = defaultdict(int)
         for event in all_events:
-            if event.created_at:
-                date_key = event.created_at.strftime("%Y-%m-%d")
+            if event.occurred_at:
+                date_key = event.occurred_at.strftime("%Y-%m-%d")
                 events_by_date[date_key] += 1
         
         # Conversion rates
@@ -422,7 +432,7 @@ def settings_page():
         "settings.html",
         settings=settings,
         env_settings=env_settings,
-        sequences=sequences,
+        sequences=sequences_dict,
     )
 
 
@@ -431,18 +441,18 @@ def sequences_list():
     """List all email sequences."""
     return render_template(
         "sequences.html",
-        sequences=sequences,
+        sequences=sequences_dict,
     )
 
 
 @app.route("/sequences/<sequence_id>")
 def sequence_detail(sequence_id):
     """View and edit a specific sequence."""
-    if sequence_id not in sequences:
+    if sequence_id not in sequences_dict:
         flash("Sequence not found", "error")
         return redirect(url_for("sequences_list"))
     
-    sequence = sequences[sequence_id]
+    sequence = sequences_dict[sequence_id]
     sequence["id"] = sequence_id
     
     # Get available templates
@@ -543,7 +553,7 @@ def add_sequence():
 @app.route("/sequences/<sequence_id>/edit", methods=["GET", "POST"])
 def edit_sequence(sequence_id):
     """Edit an existing email sequence."""
-    if sequence_id not in sequences:
+    if sequence_id not in sequences_dict:
         flash("Sequence not found", "error")
         return redirect(url_for("sequences_list"))
     
@@ -615,7 +625,7 @@ def edit_sequence(sequence_id):
             flash(f"Error updating sequence: {str(e)}", "error")
             return redirect(url_for("edit_sequence", sequence_id=sequence_id))
     
-    sequence = sequences[sequence_id]
+    sequence = sequences_dict[sequence_id]
     sequence["id"] = sequence_id
     return render_template(
         "edit_sequence.html",

@@ -227,13 +227,17 @@ class ReplyDetector:
 
         Args:
             outbound_message_ids: List of outbound Message-IDs to check
-            since_date: Only check messages since this date (optional)
+            since_date: Only check messages since this date (defaults to Jan 1, 2026)
 
         Returns:
             Dictionary mapping outbound_message_id -> list of reply info dicts
         """
         if not outbound_message_ids:
             return {}
+
+        # Default to January 1, 2026 if no date specified (optimization: skip older emails)
+        if since_date is None:
+            since_date = datetime(2026, 1, 1)
 
         replies: dict[str, list[dict[str, Any]]] = {msg_id: [] for msg_id in outbound_message_ids}
 
@@ -242,12 +246,12 @@ class ReplyDetector:
             try:
                 imap.select(self.config.mailbox)
 
-                # Build search criteria
-                search_criteria = ["UNSEEN"]  # Only unread messages
-                if since_date:
-                    # Format date for IMAP: DD-MMM-YYYY
-                    date_str = since_date.strftime("%d-%b-%Y")
-                    search_criteria.append(f"SINCE {date_str}")
+                # Build search criteria - check ALL messages since the specified date
+                # This ensures we detect replies even if they've been read, but only checks recent emails
+                search_criteria = ["ALL"]
+                # Format date for IMAP: DD-MMM-YYYY
+                date_str = since_date.strftime("%d-%b-%Y")
+                search_criteria.append(f"SINCE {date_str}")
 
                 # Search for messages
                 status, message_numbers = imap.search(None, *search_criteria)
@@ -308,11 +312,15 @@ class ReplyDetector:
         Args:
             prospect_email: Expected sender email address
             original_subject: Original email subject
-            since_date: Only check messages since this date (optional)
+            since_date: Only check messages since this date (defaults to Jan 1, 2026)
 
         Returns:
             List of reply info dicts
         """
+        # Default to January 1, 2026 if no date specified (optimization: skip older emails)
+        if since_date is None:
+            since_date = datetime(2026, 1, 1)
+
         replies: list[dict[str, Any]] = []
 
         try:
@@ -320,11 +328,12 @@ class ReplyDetector:
             try:
                 imap.select(self.config.mailbox)
 
-                # Build search criteria
-                search_criteria = ["UNSEEN"]
-                if since_date:
-                    date_str = since_date.strftime("%d-%b-%Y")
-                    search_criteria.append(f"SINCE {date_str}")
+                # Build search criteria - check ALL messages since the specified date
+                # This ensures we detect replies even if they've been read, but only checks recent emails
+                search_criteria = ["ALL"]
+                # Format date for IMAP: DD-MMM-YYYY
+                date_str = since_date.strftime("%d-%b-%Y")
+                search_criteria.append(f"SINCE {date_str}")
 
                 # Search for messages
                 status, message_numbers = imap.search(None, *search_criteria)

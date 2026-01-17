@@ -132,6 +132,7 @@ def parse_csv(file_path: Path) -> list[dict[str, Any]]:
 def parse_excel(file_path: Path) -> list[dict[str, Any]]:
     """
     Parse prospects from Excel file.
+    Reads from all sheets (NO RESPONSE, RESPONSE, and active sheet).
 
     Args:
         file_path: Path to Excel file
@@ -146,100 +147,137 @@ def parse_excel(file_path: Path) -> list[dict[str, Any]]:
     if not file_path.exists():
         raise FileNotFoundError(f"Prospects file not found: {file_path}")
 
-    prospects: list[dict[str, Any]] = []
+    all_prospects: list[dict[str, Any]] = []
     required_columns = {"email", "full_name", "company", "resume_id"}
 
     workbook = load_workbook(file_path, read_only=True, data_only=True)
-    sheet = workbook.active
+    sheet_names = workbook.sheetnames
+    
+    # Only read from the main prospects sheet (NOT from NO RESPONSE or RESPONSE)
+    # Terminal sheets (NO RESPONSE, RESPONSE) are for archival purposes only
+    sheets_to_read = []
+    
+    # Try to find main prospects sheet by common names
+    main_sheet_names = ["Prospects", "Sheet1", "Sheet"]
+    for sheet_name in main_sheet_names:
+        if sheet_name in sheet_names:
+            sheets_to_read.append(workbook[sheet_name])
+            logger.info(f"Reading prospects from '{sheet_name}' sheet")
+            break
+    
+    # If no standard sheet found, use active sheet if it's not a terminal sheet
+    if not sheets_to_read:
+        active_sheet = workbook.active
+        if active_sheet.title not in ["NO RESPONSE", "RESPONSE"]:
+            sheets_to_read.append(active_sheet)
+            logger.info(f"Reading prospects from active sheet '{active_sheet.title}'")
+    
+    # If still no sheets to read, use active sheet as fallback
+    if not sheets_to_read:
+        sheets_to_read = [workbook.active]
+        logger.warning(f"No main sheet found, using active sheet '{workbook.active.title}'")
+    
+    # Parse each sheet
+    for sheet in sheets_to_read:
 
-    # Read headers
-    headers_row = next(sheet.iter_rows(min_row=1, max_row=1, values_only=True))
-    headers = [str(h).strip() if h else "" for h in headers_row]
-
-    # Check required columns
-    missing = required_columns - set(headers)
-    if missing:
-        workbook.close()
-        raise ValueError(f"Missing required columns: {', '.join(missing)}")
-
-    # Create column index map
-    col_map = {header: idx for idx, header in enumerate(headers)}
-
-    # Parse rows
-    for row_num, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
         try:
-            # Extract required fields
-            email = str(row[col_map["email"]]).strip() if row[col_map["email"]] else ""
-            full_name = (
-                str(row[col_map["full_name"]]).strip() if row[col_map["full_name"]] else ""
-            )
-            company = str(row[col_map["company"]]).strip() if row[col_map["company"]] else ""
-            resume_id = str(row[col_map["resume_id"]]).strip() if row[col_map["resume_id"]] else ""
+            # Read headers
+            headers_row = next(sheet.iter_rows(min_row=1, max_row=1, values_only=True))
+            headers = [str(h).strip() if h else "" for h in headers_row]
 
-            # Validate required fields
-            if not email:
-                logger.warning("Skipping row with missing email", row=row_num)
-                continue
-            if not validate_email(email):
-                logger.warning("Skipping row with invalid email", row=row_num, email=email)
-                continue
-            if not full_name:
-                logger.warning("Skipping row with missing full_name", row=row_num)
-                continue
-            if not company:
-                logger.warning("Skipping row with missing company", row=row_num)
-                continue
-            if not resume_id:
-                logger.warning("Skipping row with missing resume_id", row=row_num)
+            # Check required columns
+            missing = required_columns - set(headers)
+            if missing:
+                logger.warning(
+                    f"Skipping sheet '{sheet.title}': Missing required columns: {', '.join(missing)}"
+                )
                 continue
 
-            # Generate prospect_id if not provided
-            prospect_id_col = col_map.get("prospect_id")
-            prospect_id = ""
-            if prospect_id_col is not None and row[prospect_id_col]:
-                prospect_id = str(row[prospect_id_col]).strip()
+            # Create column index map
+            col_map = {header: idx for idx, header in enumerate(headers)}
 
-                if not prospect_id:
-                    prospect_id = generate_prospect_id(email, company)
+            # Parse rows
+            for row_num, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
+                try:
+                    # Extract required fields
+                    email = str(row[col_map["email"]]).strip() if row[col_map["email"]] else ""
+                    full_name = (
+                        str(row[col_map["full_name"]]).strip() if row[col_map["full_name"]] else ""
+                    )
+                    company = str(row[col_map["company"]]).strip() if row[col_map["company"]] else ""
+                    resume_id = str(row[col_map["resume_id"]]).strip() if row[col_map["resume_id"]] else ""
 
-                # Build prospect data
-                prospect_data: dict[str, Any] = {
-                    "id": prospect_id if len(prospect_id) == 36 else None,
-                "email": email,
-                "full_name": full_name,
-                "company": company,
-                "resume_id": resume_id,
-                "sequence_id": (
-                    str(row[col_map["sequence_id"]]).strip()
-                    if col_map.get("sequence_id") is not None and row[col_map["sequence_id"]]
-                    else "default"
-                ),
-                "role_title": (
-                    str(row[col_map["role_title"]]).strip()
-                    if col_map.get("role_title") is not None and row[col_map["role_title"]]
-                    else None
-                ),
-                "timezone": (
-                    str(row[col_map["timezone"]]).strip()
-                    if col_map.get("timezone") is not None and row[col_map["timezone"]]
-                    else None
-                ),
-                "variables_json": (
-                    str(row[col_map["variables_json"]]).strip()
-                    if col_map.get("variables_json") is not None
-                    and row[col_map["variables_json"]]
-                    else None
-                ),
-            }
+                    # Validate required fields
+                    if not email:
+                        logger.warning("Skipping row with missing email", row=row_num)
+                        continue
+                    if not validate_email(email):
+                        logger.warning("Skipping row with invalid email", row=row_num, email=email)
+                        continue
+                    if not full_name:
+                        logger.warning("Skipping row with missing full_name", row=row_num)
+                        continue
+                    if not company:
+                        logger.warning("Skipping row with missing company", row=row_num)
+                        continue
+                    if not resume_id:
+                        logger.warning("Skipping row with missing resume_id", row=row_num)
+                        continue
 
-            prospects.append(prospect_data)
+                    # Generate prospect_id if not provided
+                    prospect_id_col = col_map.get("prospect_id")
+                    prospect_id = ""
+                    if prospect_id_col is not None and row[prospect_id_col]:
+                        prospect_id = str(row[prospect_id_col]).strip()
+
+                    if not prospect_id:
+                        prospect_id = generate_prospect_id(email, company)
+
+                    # Build prospect data
+                    prospect_data: dict[str, Any] = {
+                        "id": prospect_id if len(prospect_id) == 36 else None,
+                        "email": email,
+                        "full_name": full_name,
+                        "company": company,
+                        "resume_id": resume_id,
+                        "sequence_id": (
+                            str(row[col_map["sequence_id"]]).strip()
+                            if col_map.get("sequence_id") is not None and row[col_map["sequence_id"]]
+                            else "default"
+                        ),
+                        "role_title": (
+                            str(row[col_map["role_title"]]).strip()
+                            if col_map.get("role_title") is not None and row[col_map["role_title"]]
+                            else None
+                        ),
+                        "timezone": (
+                            str(row[col_map["timezone"]]).strip()
+                            if col_map.get("timezone") is not None and row[col_map["timezone"]]
+                            else None
+                        ),
+                        "variables_json": (
+                            str(row[col_map["variables_json"]]).strip()
+                            if col_map.get("variables_json") is not None
+                            and row[col_map["variables_json"]]
+                            else None
+                        ),
+                    }
+
+                    all_prospects.append(prospect_data)
+                except Exception as e:
+                    logger.error("Error parsing row", sheet=sheet.title, row=row_num, error=str(e))
+                    continue
+        except StopIteration:
+            # Empty sheet, skip
+            logger.warning(f"Sheet '{sheet.title}' is empty, skipping")
+            continue
         except Exception as e:
-            logger.error("Error parsing row", row=row_num, error=str(e))
+            logger.error(f"Error parsing sheet '{sheet.title}'", error=str(e))
             continue
 
     workbook.close()
-    logger.info("Parsed Excel file", file=str(file_path), count=len(prospects))
-    return prospects
+    logger.info("Parsed Excel file", file=str(file_path), count=len(all_prospects))
+    return all_prospects
 
 
 def ingest_prospects(
@@ -306,16 +344,38 @@ def ingest_prospects(
 
             if existing:
                 if reset_state:
-                    # Reset state for existing prospect
-                    prospect_data["status"] = "NEW"
-                    prospect_data["followup_step"] = 0
-                    prospect_data["next_action_at"] = None
-                    prospect_data["thread_key"] = None
-                    prospect_data["last_error"] = None
+                    # Only reset if not in terminal status (preserve REPLIED/COMPLETED)
+                    if existing.status not in ["REPLIED", "COMPLETED"]:
+                        prospect_data["status"] = "NEW"
+                        prospect_data["followup_step"] = 0
+                        prospect_data["next_action_at"] = None
+                        prospect_data["thread_key"] = None
+                        prospect_data["last_error"] = None
+                    else:
+                        # Don't reset terminal statuses - skip updating status-related fields
+                        logger.info(
+                            "Preserving terminal status",
+                            email=existing.email,
+                            status=existing.status,
+                        )
+                        # Remove status-related fields from prospect_data to preserve them
+                        prospect_data.pop("status", None)
+                        prospect_data.pop("followup_step", None)
+                        prospect_data.pop("next_action_at", None)
+                        prospect_data.pop("thread_key", None)
                 else:
                     # Preserve existing state but ensure NEW prospects have NULL next_action_at
                     if existing.status == "NEW" and existing.next_action_at is not None:
                         prospect_data["next_action_at"] = None
+                    # Never overwrite status-related fields for non-NEW prospects unless explicitly reset
+                    # This preserves SENT_INITIAL, FOLLOWUP_1_SENT, FOLLOWUP_2_SENT, REPLIED, COMPLETED
+                    if existing.status != "NEW":
+                        # Remove status-related fields to preserve them
+                        prospect_data.pop("status", None)
+                        prospect_data.pop("followup_step", None)
+                        prospect_data.pop("next_action_at", None)
+                        prospect_data.pop("thread_key", None)
+                        prospect_data.pop("last_sent_at", None)
                 updated_count += 1
             else:
                 # New prospect - ensure next_action_at is NULL for immediate eligibility

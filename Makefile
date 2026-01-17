@@ -50,4 +50,13 @@ status: ## Show prospect status
 export-events: ## Export events to JSONL
 	poetry run cold-emailer export-events --out logs/events.jsonl
 
+export-prospects: ## Export prospects to Excel with NO RESPONSE and RESPONSE tabs
+	poetry run cold-emailer export-prospects --out data/prospects.xlsx
+
+check-replies: ## Manually check for email replies
+	poetry run cold-emailer check-replies
+
+web: ## Start web interface on http://localhost:5000
+	poetry run cold-emailer web
+
 all: format lint type-check test ## Run all checks (format, lint, type-check, test)

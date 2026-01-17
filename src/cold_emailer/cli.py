@@ -8,6 +8,7 @@ import typer
 from typing_extensions import Annotated
 
 from cold_emailer.config import EnvSettings, load_config, load_sequences
+from cold_emailer.export import export_prospects_to_excel
 from cold_emailer.orchestrator import Orchestrator
 from cold_emailer.state_store.db import create_database_engine, get_session, init_database
 from cold_emailer.state_store.models import ProspectStatus
@@ -196,6 +197,11 @@ def run(
         typer.echo(f"  Failed: {summary['emails_failed']}")
         if summary["throttled"] > 0:
             typer.echo(f"  Throttled: {summary['throttled']}")
+        
+        if "exported" in summary:
+            typer.echo(f"\nExported to Excel:")
+            typer.echo(f"  RESPONSE sheet: {summary['exported']['replied']}")
+            typer.echo(f"  NO RESPONSE sheet: {summary['exported']['completed']}")
 
         typer.echo("=" * 60)
 
@@ -335,6 +341,128 @@ def export_events(
         raise typer.Exit(1)
 
 
+@app.command()
+def export_prospects(
+    out: Annotated[
+        Path,
+        typer.Option(
+            "--out",
+            "-o",
+            help="Output Excel file path",
+        ),
+    ] = Path("data/prospects.xlsx"),
+    config: Annotated[
+        Path,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to config file",
+        ),
+    ] = Path("config/settings.yaml"),
+    status_filter: Annotated[
+        str | None,
+        typer.Option(
+            "--status",
+            "-s",
+            help="Filter by status (REPLIED, COMPLETED, etc.). If not specified, exports all completed/replied prospects.",
+        ),
+    ] = None,
+) -> None:
+    """Export prospects to Excel with NO RESPONSE and RESPONSE sheets."""
+    logger.info("Exporting prospects", output=str(out), command="export-prospects")
+    try:
+        settings = load_config(str(config))
+        engine = create_database_engine(
+            db_path=settings.database.path, echo=settings.database.echo
+        )
+
+        # Ensure output directory exists
+        out.parent.mkdir(parents=True, exist_ok=True)
+
+        with get_session(engine) as session:
+            repo = ProspectRepository(session)
+            
+            # Get prospects based on filter
+            if status_filter:
+                prospects = repo.get_by_status(status_filter)
+            else:
+                # Get all REPLIED and COMPLETED prospects
+                replied = repo.get_by_status(ProspectStatus.REPLIED)
+                completed = repo.get_by_status(ProspectStatus.COMPLETED)
+                prospects = replied + completed
+            
+            if not prospects:
+                typer.echo("No prospects found to export.")
+                return
+            
+            # Export to Excel
+            export_prospects_to_excel(prospects, out, preserve_existing=True)
+            
+            # Count by category
+            replied_count = sum(1 for p in prospects if p.status == ProspectStatus.REPLIED.value)
+            completed_count = sum(1 for p in prospects if p.status == ProspectStatus.COMPLETED.value)
+            
+            typer.echo(f"\n✓ Exported {len(prospects)} prospects to {out}")
+            typer.echo(f"  RESPONSE tab: {replied_count} prospects")
+            typer.echo(f"  NO RESPONSE tab: {completed_count} prospects")
+            logger.info(
+                "Prospects exported successfully",
+                count=len(prospects),
+                path=str(out),
+                replied=replied_count,
+                completed=completed_count,
+            )
+
+    except Exception as e:
+        logger.error("Failed to export prospects", error=str(e))
+        typer.echo(f"✗ Error: {e}", err=True)
+        raise typer.Exit(1)
+
+
+@app.command()
+def check_replies(
+    config: Annotated[
+        Path,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to config file",
+        ),
+    ] = Path("config/settings.yaml"),
+) -> None:
+    """Manually check for replies (works even if IMAP wasn't configured during run)."""
+    logger.info("Checking for replies", command="check-replies")
+    try:
+        settings = load_config(str(config))
+        sequences = load_sequences()
+        env_settings = EnvSettings()
+        
+        # Create orchestrator (not in dry-run mode for reply detection)
+        orchestrator = Orchestrator(
+            settings=settings,
+            env_settings=env_settings,
+            sequences=sequences,
+            dry_run=False,  # Must be False to detect replies
+        )
+        
+        replies_detected = orchestrator.detect_replies()
+        
+        typer.echo(f"\n✓ Reply check complete")
+        typer.echo(f"  Replies detected: {replies_detected}")
+        
+        if replies_detected > 0:
+            typer.echo(f"\n  ✓ {replies_detected} prospect(s) marked as REPLIED")
+            typer.echo(f"  These prospects will no longer receive follow-up emails.")
+        else:
+            typer.echo(f"\n  No new replies detected.")
+            typer.echo(f"  Note: Make sure IMAP is configured in .env file")
+        
+    except Exception as e:
+        logger.error("Failed to check replies", error=str(e))
+        typer.echo(f"✗ Error: {e}", err=True)
+        raise typer.Exit(1)
+
+
 @app.callback()
 def main(
     verbose: Annotated[
@@ -351,6 +479,19 @@ def main(
     log_level = "DEBUG" if verbose else "INFO"
     setup_logging(level=log_level, format_type="text")
     logger.info("Application started")
+
+
+@app.command()
+def web() -> None:
+    """Start the web interface."""
+    try:
+        logger.info("Starting web interface")
+        from cold_emailer.web.app import main as web_main
+        web_main()
+    except Exception as e:
+        logger.error("Failed to start web interface", error=str(e))
+        typer.echo(f"✗ Error: {e}", err=True)
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":

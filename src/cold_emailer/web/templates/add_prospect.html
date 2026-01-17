@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Add Prospect - Cold Email Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2">
+        <i class="bi bi-person-plus"></i> Add New Prospect
+    </h1>
+    <a href="{{ url_for('prospects_list') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to List
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Prospect Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" id="email" name="email" 
+                               value="{{ prospect.get('email', '') }}" required>
+                        <div class="form-text">Valid email address required</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="full_name" class="form-label">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="full_name" name="full_name" 
+                               value="{{ prospect.get('full_name', '') }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="company" class="form-label">Company <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="company" name="company" 
+                               value="{{ prospect.get('company', '') }}" required>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="resume_id" class="form-label">Resume ID <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="resume_id" name="resume_id" 
+                                   value="{{ prospect.get('resume_id', '') }}" 
+                                   placeholder="e.g., RES-001" required>
+                            <div class="form-text">Resume file must exist in assets/resumes/</div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="role_title" class="form-label">Role Title</label>
+                            <input type="text" class="form-control" id="role_title" name="role_title" 
+                                   value="{{ prospect.get('role_title', '') }}" 
+                                   placeholder="e.g., Software Engineer">
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="sequence_id" class="form-label">Email Sequence</label>
+                            <select class="form-select" id="sequence_id" name="sequence_id">
+                                {% for seq_id, seq in sequences.items() %}
+                                    <option value="{{ seq_id }}" 
+                                            {% if prospect.get('sequence_id', 'default') == seq_id %}selected{% endif %}>
+                                        {{ seq.name }} - {{ seq.description }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="timezone" class="form-label">Timezone</label>
+                            <input type="text" class="form-control" id="timezone" name="timezone" 
+                                   value="{{ prospect.get('timezone', '') }}" 
+                                   placeholder="e.g., America/New_York">
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('prospects_list') }}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Add Prospect
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="alert alert-info mt-3">
+            <i class="bi bi-info-circle"></i>
+            <strong>Note:</strong> The prospect will be created with status "NEW" and will be eligible for the next campaign run.
+        </div>
+    </div>
+</div>
+{% endblock %}

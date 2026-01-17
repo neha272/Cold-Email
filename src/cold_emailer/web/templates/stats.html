@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block title %}Statistics - Cold Email Manager{% endblock %}
+
+{% block content %}
+<h1 class="h2 mb-4">
+    <i class="bi bi-graph-up"></i> Statistics & Analytics
+</h1>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card text-center">
+            <div class="card-body">
+                <h6 class="text-muted">Total Prospects</h6>
+                <h2 class="text-primary">{{ total_prospects }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card text-center">
+            <div class="card-body">
+                <h6 class="text-muted">Replied</h6>
+                <h2 class="text-success">{{ replied_count }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card text-center">
+            <div class="card-body">
+                <h6 class="text-muted">Completed</h6>
+                <h2 class="text-secondary">{{ completed_count }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card text-center">
+            <div class="card-body">
+                <h6 class="text-muted">Response Rate</h6>
+                <h2 class="text-info">{{ "%.1f"|format(response_rate) }}%</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-pie-chart"></i> Status Distribution
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="statusChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-bar-chart"></i> Status Breakdown
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="statusBarChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-graph-up-arrow"></i> Activity Timeline
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="timelineChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Status Breakdown Table -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-table"></i> Detailed Breakdown
+                </h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Count</th>
+                            <th>Percentage</th>
+                            <th>Visual</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for status, count in status_counts.items() %}
+                            <tr>
+                                <td><strong>{{ status }}</strong></td>
+                                <td>{{ count }}</td>
+                                <td>{{ "%.1f"|format((count / total_prospects * 100) if total_prospects > 0 else 0) }}%</td>
+                                <td>
+                                    <div class="progress">
+                                        <div class="progress-bar" role="progressbar" 
+                                             style="width: {{ (count / total_prospects * 100) if total_prospects > 0 else 0 }}%">
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const statusData = {{ status_counts|tojson }};
+    const eventsData = {{ events_by_date|tojson }};
+    
+    // Status Pie Chart
+    const pieCtx = document.getElementById('statusChart').getContext('2d');
+    new Chart(pieCtx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(statusData),
+            datasets: [{
+                data: Object.values(statusData),
+                backgroundColor: [
+                    '#366092',
+                    '#28a745',
+                    '#17a2b8',
+                    '#ffc107',
+                    '#dc3545',
+                    '#6c757d'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+    
+    // Status Bar Chart
+    const barCtx = document.getElementById('statusBarChart').getContext('2d');
+    new Chart(barCtx, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(statusData),
+            datasets: [{
+                label: 'Prospects',
+                data: Object.values(statusData),
+                backgroundColor: '#366092'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+    
+    // Timeline Chart
+    const timelineCtx = document.getElementById('timelineChart').getContext('2d');
+    const sortedDates = Object.keys(eventsData).sort();
+    const eventCounts = sortedDates.map(date => eventsData[date]);
+    
+    new Chart(timelineCtx, {
+        type: 'line',
+        data: {
+            labels: sortedDates,
+            datasets: [{
+                label: 'Events per Day',
+                data: eventCounts,
+                borderColor: '#366092',
+                backgroundColor: 'rgba(54, 96, 146, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

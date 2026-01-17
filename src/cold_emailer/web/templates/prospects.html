@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Prospects - Cold Email Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2">
+        <i class="bi bi-people"></i> Prospects
+    </h1>
+    <div class="d-flex gap-2 align-items-center">
+        <span class="badge bg-secondary fs-6">{{ prospects|length }} of {{ total_count }} total</span>
+        <a href="{{ url_for('import_prospects') }}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-upload"></i> Import
+        </a>
+        <a href="{{ url_for('add_prospect') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-person-plus"></i> Add Prospect
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Search</label>
+                <input type="text" name="q" class="form-control" placeholder="Search by email, name, or company..." value="{{ search_query }}">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Filter by Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="NEW" {% if status_filter == 'NEW' %}selected{% endif %}>New</option>
+                    <option value="SENT_INITIAL" {% if status_filter == 'SENT_INITIAL' %}selected{% endif %}>Initial Sent</option>
+                    <option value="FOLLOWUP_1_SENT" {% if status_filter == 'FOLLOWUP_1_SENT' %}selected{% endif %}>Follow-up 1 Sent</option>
+                    <option value="FOLLOWUP_2_SENT" {% if status_filter == 'FOLLOWUP_2_SENT' %}selected{% endif %}>Follow-up 2 Sent</option>
+                    <option value="REPLIED" {% if status_filter == 'REPLIED' %}selected{% endif %}>Replied</option>
+                    <option value="COMPLETED" {% if status_filter == 'COMPLETED' %}selected{% endif %}>Completed</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Prospects Table -->
+<div class="card">
+    <div class="card-body">
+        {% if prospects %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Company</th>
+                            <th>Status</th>
+                            <th>Step</th>
+                            <th>Last Sent</th>
+                            <th>Next Action</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for prospect in prospects %}
+                            <tr>
+                                <td>
+                                    <strong>{{ prospect.full_name }}</strong>
+                                </td>
+                                <td>{{ prospect.email }}</td>
+                                <td>{{ prospect.company }}</td>
+                                <td>
+                                    {% if prospect.status == 'REPLIED' %}
+                                        <span class="badge bg-success badge-status">
+                                            <i class="bi bi-check-circle"></i> Replied
+                                        </span>
+                                    {% elif prospect.status == 'COMPLETED' %}
+                                        <span class="badge bg-secondary badge-status">
+                                            <i class="bi bi-check"></i> Completed
+                                        </span>
+                                    {% elif prospect.status == 'NEW' %}
+                                        <span class="badge bg-info badge-status">
+                                            <i class="bi bi-asterisk"></i> New
+                                        </span>
+                                    {% elif 'SENT' in prospect.status %}
+                                        <span class="badge bg-primary badge-status">
+                                            <i class="bi bi-send"></i> In Progress
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-warning badge-status">
+                                            {{ prospect.status }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ prospect.followup_step }}</td>
+                                <td>{{ prospect.last_sent_at|datetime if prospect.last_sent_at else 'Never' }}</td>
+                                <td>
+                                    {% if prospect.next_action_at %}
+                                        {{ prospect.next_action_at|datetime }}
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('prospect_detail', prospect_id=prospect.id) }}" class="btn btn-outline-primary">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                        <a href="{{ url_for('edit_prospect', prospect_id=prospect.id) }}" class="btn btn-outline-secondary">
+                                            <i class="bi bi-pencil"></i> Edit
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-inbox fs-1 text-muted"></i>
+                <p class="text-muted mt-3">No prospects found matching your criteria</p>
+                {% if status_filter or search_query %}
+                    <a href="{{ url_for('prospects_list') }}" class="btn btn-primary">Clear Filters</a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

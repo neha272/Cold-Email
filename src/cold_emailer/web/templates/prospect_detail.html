@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}{{ prospect.full_name }} - Prospect Detail{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2">
+        <i class="bi bi-person-circle"></i> Prospect Details
+    </h1>
+    <div class="btn-group">
+        <a href="{{ url_for('prospects_list') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to List
+        </a>
+        <a href="{{ url_for('edit_prospect', prospect_id=prospect.id) }}" class="btn btn-primary">
+            <i class="bi bi-pencil"></i> Edit
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Prospect Information -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-info-circle"></i> Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Name:</dt>
+                    <dd class="col-sm-7">{{ prospect.full_name }}</dd>
+                    
+                    <dt class="col-sm-5">Email:</dt>
+                    <dd class="col-sm-7">
+                        <a href="mailto:{{ prospect.email }}">{{ prospect.email }}</a>
+                    </dd>
+                    
+                    <dt class="col-sm-5">Company:</dt>
+                    <dd class="col-sm-7">{{ prospect.company }}</dd>
+                    
+                    <dt class="col-sm-5">Role:</dt>
+                    <dd class="col-sm-7">{{ prospect.role_title or 'N/A' }}</dd>
+                    
+                    <dt class="col-sm-5">Resume:</dt>
+                    <dd class="col-sm-7">{{ prospect.resume_id or 'N/A' }}</dd>
+                    
+                    <dt class="col-sm-5">Status:</dt>
+                    <dd class="col-sm-7">
+                        {% if prospect.status == 'REPLIED' %}
+                            <span class="badge bg-success">Replied</span>
+                        {% elif prospect.status == 'COMPLETED' %}
+                            <span class="badge bg-secondary">Completed</span>
+                        {% elif prospect.status == 'NEW' %}
+                            <span class="badge bg-info">New</span>
+                        {% else %}
+                            <span class="badge bg-primary">{{ prospect.status }}</span>
+                        {% endif %}
+                    </dd>
+                    
+                    <dt class="col-sm-5">Follow-up Step:</dt>
+                    <dd class="col-sm-7">{{ prospect.followup_step }}</dd>
+                    
+                    <dt class="col-sm-5">Sequence:</dt>
+                    <dd class="col-sm-7">{{ prospect.sequence_id }}</dd>
+                    
+                    <dt class="col-sm-5">Created:</dt>
+                    <dd class="col-sm-7">{{ prospect.created_at|datetime }}</dd>
+                    
+                    <dt class="col-sm-5">Last Sent:</dt>
+                    <dd class="col-sm-7">{{ prospect.last_sent_at|datetime if prospect.last_sent_at else 'Never' }}</dd>
+                    
+                    <dt class="col-sm-5">Next Action:</dt>
+                    <dd class="col-sm-7">{{ prospect.next_action_at|datetime if prospect.next_action_at else 'N/A' }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Activity Timeline -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock-history"></i> Activity Timeline
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if events %}
+                    <div class="timeline">
+                        {% for event in events %}
+                            <div class="timeline-item mb-4">
+                                <div class="d-flex">
+                                    <div class="me-3">
+                                        {% if event.event_type == 'SEND_SUCCESS' %}
+                                            <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                <i class="bi bi-send-check"></i>
+                                            </div>
+                                        {% elif event.event_type == 'REPLY_DETECTED' %}
+                                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                <i class="bi bi-reply"></i>
+                                            </div>
+                                        {% elif event.event_type == 'SEND_FAIL' %}
+                                            <div class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                <i class="bi bi-x-circle"></i>
+                                            </div>
+                                        {% elif event.event_type == 'SEND_ATTEMPT' %}
+                                            <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                <i class="bi bi-send"></i>
+                                            </div>
+                                        {% else %}
+                                            <div class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                <i class="bi bi-info"></i>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between">
+                                            <h6 class="mb-1">
+                                                {% if event.event_type == 'SEND_SUCCESS' %}
+                                                    Email Successfully Sent
+                                                {% elif event.event_type == 'REPLY_DETECTED' %}
+                                                    Reply Detected
+                                                {% elif event.event_type == 'SEND_FAIL' %}
+                                                    Send Failed
+                                                {% elif event.event_type == 'SEND_ATTEMPT' %}
+                                                    Send Attempt
+                                                {% else %}
+                                                    {{ event.event_type }}
+                                                {% endif %}
+                                            </h6>
+                                            <small class="text-muted">{{ event.created_at|timesince }}</small>
+                                        </div>
+                                        <p class="mb-1"><strong>Subject:</strong> {{ event.subject or 'N/A' }}</p>
+                                        {% if event.template_id %}
+                                            <p class="mb-1"><small class="text-muted">Template: {{ event.template_id }}</small></p>
+                                        {% endif %}
+                                        {% if event.outbound_message_id %}
+                                            <p class="mb-0"><small class="text-muted">Message ID: {{ event.outbound_message_id[:20] }}...</small></p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-inbox fs-1 text-muted"></i>
+                        <p class="text-muted mt-3">No activity recorded yet</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

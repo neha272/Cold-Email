@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Import Prospects - Cold Email Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2">
+        <i class="bi bi-upload"></i> Import Prospects
+    </h1>
+    <a href="{{ url_for('prospects_list') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to List
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Upload Excel File</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Excel File (.xlsx)</label>
+                        <input type="file" class="form-control" id="file" name="file" 
+                               accept=".xlsx,.xls" required>
+                        <div class="form-text">
+                            Upload an Excel file with prospects. Required columns: email, full_name, company, resume_id
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('prospects_list') }}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-upload"></i> Import Prospects
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-info-circle"></i> Excel File Format
+                </h5>
+            </div>
+            <div class="card-body">
+                <p>Your Excel file should have the following columns:</p>
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Column</th>
+                            <th>Required</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>email</code></td>
+                            <td><span class="badge bg-danger">Yes</span></td>
+                            <td>Valid email address</td>
+                        </tr>
+                        <tr>
+                            <td><code>full_name</code></td>
+                            <td><span class="badge bg-danger">Yes</span></td>
+                            <td>Full name of the prospect</td>
+                        </tr>
+                        <tr>
+                            <td><code>company</code></td>
+                            <td><span class="badge bg-danger">Yes</span></td>
+                            <td>Company name</td>
+                        </tr>
+                        <tr>
+                            <td><code>resume_id</code></td>
+                            <td><span class="badge bg-danger">Yes</span></td>
+                            <td>Resume file ID (e.g., RES-001)</td>
+                        </tr>
+                        <tr>
+                            <td><code>role_title</code></td>
+                            <td><span class="badge bg-secondary">No</span></td>
+                            <td>Job title or role</td>
+                        </tr>
+                        <tr>
+                            <td><code>sequence_id</code></td>
+                            <td><span class="badge bg-secondary">No</span></td>
+                            <td>Email sequence (default: "default")</td>
+                        </tr>
+                        <tr>
+                            <td><code>timezone</code></td>
+                            <td><span class="badge bg-secondary">No</span></td>
+                            <td>Timezone (e.g., America/New_York)</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="bi bi-lightbulb"></i>
+                    <strong>Tip:</strong> You can use the existing <code>data/prospects.xlsx</code> file as a template.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

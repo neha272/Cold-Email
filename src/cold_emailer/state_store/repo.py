@@ -66,6 +66,7 @@ class ProspectRepository:
 
         Args:
             prospect_data: Dictionary with prospect fields (must include 'email')
+                          Fields set to None are skipped (to preserve existing values)
 
         Returns:
             Prospect instance (created or updated)
@@ -77,8 +78,9 @@ class ProspectRepository:
         existing = self.get_by_email(email)
         if existing:
             # Update existing prospect (but preserve state if not explicitly reset)
+            # Skip None values to preserve existing data
             for key, value in prospect_data.items():
-                if key != "id" and hasattr(existing, key):
+                if key != "id" and hasattr(existing, key) and value is not None:
                     setattr(existing, key, value)
             return existing
         else:
@@ -206,6 +208,28 @@ class ProspectRepository:
             return None
 
         prospect.followup_step = step
+        return prospect
+
+    def update_last_sent_at(self, prospect_id: uuid.UUID, sent_at: datetime | None = None) -> Prospect | None:
+        """
+        Update prospect's last sent timestamp.
+
+        Args:
+            prospect_id: Prospect UUID
+            sent_at: Timestamp when email was sent (defaults to now)
+
+        Returns:
+            Updated Prospect instance or None if not found
+        """
+        prospect = self.get_by_id(prospect_id)
+        if not prospect:
+            return None
+
+        if sent_at is None:
+            from datetime import datetime
+            sent_at = datetime.utcnow()
+        
+        prospect.last_sent_at = sent_at
         return prospect
 
     def get_all(self, limit: int | None = None, offset: int = 0) -> list[Prospect]:

@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Cold Email Manager{% endblock %}
+
+{% block content %}
+<h1 class="h2 mb-4">
+    <i class="bi bi-gear"></i> Settings & Configuration
+</h1>
+
+<!-- Email Settings -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-envelope"></i> Email Configuration
+                </h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">From Name:</dt>
+                    <dd class="col-sm-7">{{ settings.email.from_name }}</dd>
+                    
+                    <dt class="col-sm-5">From Email:</dt>
+                    <dd class="col-sm-7">{{ settings.email.from_email }}</dd>
+                    
+                    <dt class="col-sm-5">Reply To:</dt>
+                    <dd class="col-sm-7">{{ settings.email.reply_to or 'Same as from' }}</dd>
+                    
+                    <dt class="col-sm-5">SMTP Host:</dt>
+                    <dd class="col-sm-7">{{ env_settings.smtp_host }}</dd>
+                    
+                    <dt class="col-sm-5">SMTP Port:</dt>
+                    <dd class="col-sm-7">{{ env_settings.smtp_port }}</dd>
+                    
+                    <dt class="col-sm-5">SMTP TLS:</dt>
+                    <dd class="col-sm-7">
+                        {% if env_settings.smtp_use_tls %}
+                            <span class="badge bg-success">Enabled</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Disabled</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock"></i> Throttling Settings
+                </h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-6">Daily Max:</dt>
+                    <dd class="col-sm-6">{{ settings.throttling.daily_max }} emails</dd>
+                    
+                    <dt class="col-sm-6">Hourly Max:</dt>
+                    <dd class="col-sm-6">{{ settings.throttling.hourly_max }} emails</dd>
+                    
+                    <dt class="col-sm-6">Delay Between:</dt>
+                    <dd class="col-sm-6">{{ settings.throttling.delay_seconds }} seconds</dd>
+                    
+                    <dt class="col-sm-6">Send Window:</dt>
+                    <dd class="col-sm-6">{{ settings.throttling.send_window_start }} - {{ settings.throttling.send_window_end }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sequence Configuration -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-list-ol"></i> Email Sequences
+                </h5>
+            </div>
+            <div class="card-body">
+                {% for sequence_id, sequence in sequences.items() %}
+                    <div class="mb-4">
+                        <h6 class="text-primary">{{ sequence.name }}</h6>
+                        <p class="text-muted">{{ sequence.description }}</p>
+                        
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Step</th>
+                                    <th>Template</th>
+                                    <th>Subject</th>
+                                    <th>Wait Days</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for step in sequence.steps %}
+                                    <tr>
+                                        <td><span class="badge bg-secondary">{{ step.step }}</span></td>
+                                        <td>{{ step.template }}</td>
+                                        <td>{{ step.subject }}</td>
+                                        <td>{{ step.wait_days }} days</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Database Info -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-database"></i> Database
+                </h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Path:</dt>
+                    <dd class="col-sm-8"><code>{{ settings.database.path }}</code></dd>
+                    
+                    <dt class="col-sm-4">Echo SQL:</dt>
+                    <dd class="col-sm-8">
+                        {% if settings.database.echo %}
+                            <span class="badge bg-warning">Enabled (Debug)</span>
+                        {% else %}
+                            <span class="badge bg-success">Disabled</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-folder"></i> Paths
+                </h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Templates:</dt>
+                    <dd class="col-sm-8"><code>{{ settings.paths.templates_dir }}</code></dd>
+                    
+                    <dt class="col-sm-4">Resumes:</dt>
+                    <dd class="col-sm-8"><code>{{ settings.paths.resumes_dir }}</code></dd>
+                    
+                    <dt class="col-sm-4">Logs:</dt>
+                    <dd class="col-sm-8"><code>{{ settings.paths.logs_dir }}</code></dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> 
+    <strong>Note:</strong> To modify these settings, edit the configuration files in the <code>config/</code> directory and restart the application.
+</div>
+{% endblock %}

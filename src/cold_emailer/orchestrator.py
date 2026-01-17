@@ -7,6 +7,7 @@ from typing import Any
 
 from cold_emailer.composer import EmailComposer, create_composer_from_config
 from cold_emailer.config import EnvSettings, load_config, load_sequences
+from cold_emailer.export import export_prospects_to_excel
 from cold_emailer.ingestion import ingest_prospects
 from cold_emailer.mailer.imap_reply_detector import ReplyDetector, create_reply_detector_from_config
 from cold_emailer.mailer.smtp_sender import SMTPSender, create_smtp_sender_from_config
@@ -223,6 +224,64 @@ class Orchestrator:
                                     )
                                     replies_detected += 1
 
+            # Additional check: Detect replies by email address for ALL active prospects
+            # This catches replies even if Message-ID matching fails
+            all_active_prospects = [
+                p for p in prospect_repo.get_all() 
+                if not p.is_terminal_status() and p.email
+            ]
+            
+            # Get unique prospect emails
+            prospect_emails = list(set([p.email for p in all_active_prospects]))
+            
+            if prospect_emails:
+                # Check for replies from any prospect email
+                for prospect_email in prospect_emails:
+                    # Get prospects with this email
+                    prospects_for_email = [p for p in all_active_prospects if p.email == prospect_email]
+                    if not prospects_for_email:
+                        continue
+                    
+                    # Get last sent subject for any of these prospects
+                    last_subject = None
+                    for p in prospects_for_email:
+                        events = event_repo.get_by_prospect_id(p.id, limit=1)
+                        if events and events[0].subject:
+                            last_subject = events[0].subject
+                            break
+                    
+                    if last_subject:
+                        # Check for replies from this email address
+                        email_replies = self.reply_detector.detect_reply_fallback(
+                            prospect_email=prospect_email,
+                            original_subject=last_subject,
+                        )
+                        
+                        if email_replies:
+                            # Mark all prospects with this email as REPLIED
+                            for prospect in prospects_for_email:
+                                if prospect.status != ProspectStatus.REPLIED.value:
+                                    prospect_repo.update_status(prospect.id, ProspectStatus.REPLIED)
+                                    prospect_repo.update_next_action(prospect.id, None)
+                                    
+                                    # Log reply event
+                                    for reply_info in email_replies:
+                                        event_repo.create(
+                                            {
+                                                "prospect_id": prospect.id,
+                                                "event_type": MessageEventType.REPLY_DETECTED.value,
+                                                "subject": reply_info.get("subject"),
+                                                "meta_json": str(reply_info),
+                                            }
+                                        )
+                                    replies_detected += len(email_replies)
+                                    
+                                    logger.info(
+                                        "Reply detected by email address",
+                                        prospect_id=str(prospect.id),
+                                        email=prospect.email,
+                                    )
+
         return replies_detected
 
     def get_due_prospects(self) -> list[Any]:
@@ -348,14 +407,24 @@ class Orchestrator:
                     else:
                         new_status = ProspectStatus.COMPLETED
 
-                    prospect_repo.update_status(prospect.id, new_status)
+                    # Update prospect state - ensure changes are flushed
+                    updated_prospect = prospect_repo.update_status(prospect.id, new_status)
                     prospect_repo.update_followup_step(prospect.id, step + 1)
                     prospect_repo.update_next_action(prospect.id, None)  # Will be set by sequence
+                    prospect_repo.update_last_sent_at(prospect.id)  # Update last sent timestamp
 
                     # Store thread key
                     if sent_message_id:
-                        prospect.thread_key = sent_message_id
-                        prospect_repo.session.refresh(prospect)
+                        if updated_prospect:
+                            updated_prospect.thread_key = sent_message_id
+                        else:
+                            # Fallback: update directly
+                            prospect = session.get(type(prospect), prospect.id)
+                            if prospect:
+                                prospect.thread_key = sent_message_id
+                    
+                    # Flush changes to ensure they're persisted
+                    session.flush()
 
                     # Log success
                     event_repo.create(
@@ -489,12 +558,17 @@ class Orchestrator:
             )
 
             if not step_config:
-                logger.warning(
-                    "No sequence step found",
+                # No more steps in sequence - mark as COMPLETED
+                logger.info(
+                    "No more sequence steps, marking as COMPLETED",
                     prospect_id=str(prospect.id),
                     sequence_id=prospect.sequence_id,
                     step=prospect.followup_step,
                 )
+                with get_session(self.engine) as session:
+                    prospect_repo = ProspectRepository(session)
+                    prospect_repo.update_status(prospect.id, ProspectStatus.COMPLETED)
+                    prospect_repo.update_next_action(prospect.id, None)
                 continue
 
             template_name = step_config.get("template")
@@ -516,6 +590,43 @@ class Orchestrator:
                 summary["emails_sent"] += 1
             else:
                 summary["emails_failed"] += 1
+
+        # Step 5: Export completed/replied prospects to appropriate sheets
+        # This is done in a separate session after all email operations are complete
+        if prospects_file:
+            logger.info("Exporting completed prospects to Excel")
+            try:
+                # Get terminal prospects in a fresh session
+                with get_session(self.engine) as export_session:
+                    export_repo = ProspectRepository(export_session)
+                    all_prospects = export_repo.get_all()
+                    terminal_prospects = [
+                        p for p in all_prospects 
+                        if p.status in [ProspectStatus.REPLIED.value, ProspectStatus.COMPLETED.value]
+                    ]
+                # Session is now closed, safe to write to Excel
+                
+                if terminal_prospects:
+                    export_prospects_to_excel(
+                        prospects=terminal_prospects,
+                        output_path=prospects_file,
+                        preserve_existing=True,
+                    )
+                    summary["exported"] = {
+                        "replied": len([p for p in terminal_prospects if p.status == ProspectStatus.REPLIED.value]),
+                        "completed": len([p for p in terminal_prospects if p.status == ProspectStatus.COMPLETED.value]),
+                    }
+                    logger.info(
+                        "Exported prospects to sheets",
+                        replied=summary["exported"]["replied"],
+                        completed=summary["exported"]["completed"],
+                    )
+                else:
+                    logger.info("No completed/replied prospects to export")
+                    summary["exported"] = {"replied": 0, "completed": 0}
+            except Exception as e:
+                logger.error("Failed to export prospects", error=str(e))
+                summary["export_error"] = str(e)
 
         logger.info("Daily run complete", **summary)
         return summary

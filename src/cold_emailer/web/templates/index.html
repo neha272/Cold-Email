@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Cold Email Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2">
+        <i class="bi bi-speedometer2"></i> Dashboard
+    </h1>
+    <div>
+        <button class="btn btn-outline-primary me-2" onclick="checkReplies()">
+            <i class="bi bi-arrow-repeat"></i> Check Replies
+        </button>
+        <button class="btn btn-warning me-2" onclick="runCampaign(true)">
+            <i class="bi bi-play-circle"></i> Dry Run
+        </button>
+        <button class="btn btn-success" onclick="runCampaign(false)">
+            <i class="bi bi-send"></i> Run Campaign
+        </button>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-2">Total Prospects</h6>
+                        <h2 class="mb-0">{{ total_prospects }}</h2>
+                    </div>
+                    <div class="text-primary">
+                        <i class="bi bi-people fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-2">Replied</h6>
+                        <h2 class="mb-0">{{ status_counts.get('REPLIED', 0) }}</h2>
+                    </div>
+                    <div class="text-success">
+                        <i class="bi bi-check-circle fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-2">In Progress</h6>
+                        <h2 class="mb-0">{{ status_counts.get('SENT_INITIAL', 0) + status_counts.get('FOLLOWUP_1_SENT', 0) + status_counts.get('FOLLOWUP_2_SENT', 0) }}</h2>
+                    </div>
+                    <div class="text-info">
+                        <i class="bi bi-hourglass-split fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-2">Due to Send</h6>
+                        <h2 class="mb-0">{{ due_prospects_count }}</h2>
+                    </div>
+                    <div class="text-warning">
+                        <i class="bi bi-clock-history fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Status Distribution -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-pie-chart"></i> Status Distribution
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="statusChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock-history"></i> Recent Activity
+                </h5>
+            </div>
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                {% if recent_events %}
+                    <div class="list-group list-group-flush">
+                        {% for event in recent_events %}
+                            <div class="list-group-item px-0">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">
+                                        {% if event.event_type == 'SEND_SUCCESS' %}
+                                            <i class="bi bi-send-check text-success"></i> Email Sent
+                                        {% elif event.event_type == 'REPLY_DETECTED' %}
+                                            <i class="bi bi-reply text-primary"></i> Reply Received
+                                        {% elif event.event_type == 'SEND_FAIL' %}
+                                            <i class="bi bi-x-circle text-danger"></i> Send Failed
+                                        {% else %}
+                                            <i class="bi bi-info-circle"></i> {{ event.event_type }}
+                                        {% endif %}
+                                    </h6>
+                                    <small class="text-muted">{{ event.created_at|timesince }}</small>
+                                </div>
+                                <p class="mb-1 small">{{ event.subject or 'No subject' }}</p>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center py-4">No recent activity</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-lightning"></i> Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <a href="{{ url_for('prospects_list') }}" class="btn btn-outline-primary w-100 mb-2">
+                            <i class="bi bi-people"></i> View All Prospects
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="{{ url_for('prospects_list', status='NEW') }}" class="btn btn-outline-info w-100 mb-2">
+                            <i class="bi bi-person-plus"></i> New Prospects
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="{{ url_for('stats') }}" class="btn btn-outline-success w-100 mb-2">
+                            <i class="bi bi-graph-up"></i> View Statistics
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Status Distribution Chart
+    const statusData = {{ status_counts|tojson }};
+    const ctx = document.getElementById('statusChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(statusData),
+            datasets: [{
+                data: Object.values(statusData),
+                backgroundColor: [
+                    '#366092',
+                    '#28a745',
+                    '#17a2b8',
+                    '#ffc107',
+                    '#dc3545',
+                    '#6c757d'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    function runCampaign(dryRun) {
+        const btn = event.target;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Running...';
+        
+        fetch('/campaign/run', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `dry_run=${dryRun}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Campaign failed: ' + data.error);
+                btn.disabled = false;
+                btn.innerHTML = dryRun ? '<i class="bi bi-play-circle"></i> Dry Run' : '<i class="bi bi-send"></i> Run Campaign';
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error);
+            btn.disabled = false;
+            btn.innerHTML = dryRun ? '<i class="bi bi-play-circle"></i> Dry Run' : '<i class="bi bi-send"></i> Run Campaign';
+        });
+    }
+
+    function checkReplies() {
+        const btn = event.target;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Checking...';
+        
+        fetch('/campaign/check-replies', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Failed to check replies: ' + data.error);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Check Replies';
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Check Replies';
+        });
+    }
+</script>
+{% endblock %}

@@ -7,15 +7,15 @@ sequences:
     steps:
       - step: 0
         template: "initial"
-        wait_days: 3
+        wait_days: 0  # TESTING: Set to 0 for immediate follow-up (change back to 3 for production)
         subject: "Application for {{ role_title }} position at {{ company }}"
       - step: 1
         template: "followup_1"
-        wait_days: 5
+        wait_days: 0  # TESTING: Set to 0 for immediate follow-up (change back to 5 for production)
         subject: "Following up on my application for {{ role_title }} at {{ company }}"
       - step: 2
         template: "followup_2"
-        wait_days: 7
+        wait_days: 0  # TESTING: Set to 0 for immediate follow-up (change back to 7 for production)
         subject: "Final follow-up: {{ role_title }} position at {{ company }}"
 
   aggressive:

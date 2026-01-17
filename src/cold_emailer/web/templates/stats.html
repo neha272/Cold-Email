@@ -137,29 +137,57 @@
     const statusData = {{ status_counts|tojson }};
     const eventsData = {{ events_by_date|tojson }};
     
+    // Color mapping for different statuses
+    const statusColors = {
+        'NEW': '#6c757d',              // Gray - New/Unprocessed
+        'SENT_INITIAL': '#17a2b8',      // Cyan - Initial email sent
+        'FOLLOWUP_1_SENT': '#0d6efd',   // Blue - First followup sent
+        'FOLLOWUP_2_SENT': '#0dcaf0',   // Light blue - Second followup sent
+        'REPLIED': '#28a745',           // Green - Got a reply
+        'COMPLETED': '#6c757d',         // Gray - Sequence completed
+        'BOUNCED': '#dc3545',           // Red - Email bounced
+        'UNSUBSCRIBED': '#fd7e14',      // Orange - Unsubscribed
+        'ERROR': '#dc3545'              // Red - Error occurred
+    };
+    
+    // Generate colors array based on status labels
+    const labels = Object.keys(statusData);
+    const backgroundColor = labels.map(status => statusColors[status] || '#6c757d');
+    
     // Status Pie Chart
     const pieCtx = document.getElementById('statusChart').getContext('2d');
     new Chart(pieCtx, {
         type: 'doughnut',
         data: {
-            labels: Object.keys(statusData),
+            labels: labels,
             datasets: [{
                 data: Object.values(statusData),
-                backgroundColor: [
-                    '#366092',
-                    '#28a745',
-                    '#17a2b8',
-                    '#ffc107',
-                    '#dc3545',
-                    '#6c757d'
-                ]
+                backgroundColor: backgroundColor,
+                borderWidth: 2,
+                borderColor: '#ffffff'
             }]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: true,
             plugins: {
                 legend: {
-                    position: 'bottom'
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
                 }
             }
         }
@@ -170,11 +198,11 @@
     new Chart(barCtx, {
         type: 'bar',
         data: {
-            labels: Object.keys(statusData),
+            labels: labels,
             datasets: [{
                 label: 'Prospects',
                 data: Object.values(statusData),
-                backgroundColor: '#366092'
+                backgroundColor: backgroundColor
             }]
         },
         options: {

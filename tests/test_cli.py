@@ -1,6 +1,5 @@
 """Tests for CLI interface."""
 
-
 from cold_emailer.cli import app
 from typer.testing import CliRunner
 

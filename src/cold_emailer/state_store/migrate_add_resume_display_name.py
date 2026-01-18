@@ -28,14 +28,18 @@ def migrate_add_resume_display_name():
         print("📝 Adding 'resume_display_name' column to prospects table...")
 
         # Add the column
-        session.execute(text(
-            "ALTER TABLE prospects ADD COLUMN resume_display_name VARCHAR(255) DEFAULT 'Neha Sutariya'"
-        ))
+        session.execute(
+            text(
+                "ALTER TABLE prospects ADD COLUMN resume_display_name VARCHAR(255) DEFAULT 'Neha Sutariya'"
+            )
+        )
 
         # Update existing rows to have the default value
-        session.execute(text(
-            "UPDATE prospects SET resume_display_name = 'Neha Sutariya' WHERE resume_display_name IS NULL"
-        ))
+        session.execute(
+            text(
+                "UPDATE prospects SET resume_display_name = 'Neha Sutariya' WHERE resume_display_name IS NULL"
+            )
+        )
 
         session.commit()
 

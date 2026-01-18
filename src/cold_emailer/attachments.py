@@ -99,14 +99,16 @@ def list_available_resumes(resumes_dir: Path) -> list[dict[str, Any]]:
             # Get filename without extension
             resume_id = file_path.stem
 
-            resumes.append({
-                "resume_id": resume_id,
-                "filename": file_path.name,
-                "size_bytes": stat.st_size,
-                "size_mb": round(stat.st_size / (1024 * 1024), 2),
-                "modified_time": stat.st_mtime,
-                "path": str(file_path),
-            })
+            resumes.append(
+                {
+                    "resume_id": resume_id,
+                    "filename": file_path.name,
+                    "size_bytes": stat.st_size,
+                    "size_mb": round(stat.st_size / (1024 * 1024), 2),
+                    "modified_time": stat.st_mtime,
+                    "path": str(file_path),
+                }
+            )
 
     # Sort by modified time (newest first)
     resumes.sort(key=lambda x: x["modified_time"], reverse=True)
@@ -115,7 +117,9 @@ def list_available_resumes(resumes_dir: Path) -> list[dict[str, Any]]:
     return resumes
 
 
-def find_resume_file(resume_id: str, resumes_dir: Path) -> tuple[bool, str | None, dict[str, Any] | None]:
+def find_resume_file(
+    resume_id: str, resumes_dir: Path
+) -> tuple[bool, str | None, dict[str, Any] | None]:
     """
     Find resume file by ID in the resumes directory.
 
@@ -233,15 +237,27 @@ class ResumeManifest:
                         continue
 
                     relative_path_col = col_map.get("relative_path")
-                    relative_path = str(row[relative_path_col]).strip() if relative_path_col is not None and row[relative_path_col] else ""
+                    relative_path = (
+                        str(row[relative_path_col]).strip()
+                        if relative_path_col is not None and row[relative_path_col]
+                        else ""
+                    )
 
                     sha256_col = col_map.get("sha256")
-                    sha256 = str(row[sha256_col]).strip() if sha256_col is not None and row[sha256_col] else None
+                    sha256 = (
+                        str(row[sha256_col]).strip()
+                        if sha256_col is not None and row[sha256_col]
+                        else None
+                    )
                     if sha256:
                         sha256 = sha256 if sha256 else None
 
                     version_col = col_map.get("version")
-                    version = str(row[version_col]).strip() if version_col is not None and row[version_col] else None
+                    version = (
+                        str(row[version_col]).strip()
+                        if version_col is not None and row[version_col]
+                        else None
+                    )
 
                     # Resolve absolute path
                     if relative_path:

@@ -51,14 +51,14 @@ class Prospect(Base):
 
     __tablename__ = "prospects"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     company: Mapped[str] = mapped_column(String(255), nullable=False)
     resume_id: Mapped[str] = mapped_column(String(100), nullable=False)
-    resume_display_name: Mapped[str | None] = mapped_column(String(255), nullable=True, default="Neha Sutariya")
+    resume_display_name: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, default="Neha Sutariya"
+    )
     resume_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     resume_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
     sequence_id: Mapped[str] = mapped_column(String(100), nullable=False, default="default")
@@ -111,9 +111,7 @@ class MessageEvent(Base):
 
     __tablename__ = "message_events"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     prospect_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("prospects.id"), nullable=False, index=True
     )

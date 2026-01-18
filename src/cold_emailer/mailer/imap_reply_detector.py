@@ -288,7 +288,9 @@ class ReplyDetector:
                                 )
 
                     except Exception as e:
-                        logger.warning("Error processing message", message_num=msg_num, error=str(e))
+                        logger.warning(
+                            "Error processing message", message_num=msg_num, error=str(e)
+                        )
                         continue
 
             finally:
@@ -351,7 +353,9 @@ class ReplyDetector:
                         if not msg:
                             continue
 
-                        if self._is_reply_by_subject_and_from(msg, original_subject, prospect_email):
+                        if self._is_reply_by_subject_and_from(
+                            msg, original_subject, prospect_email
+                        ):
                             reply_info = {
                                 "message_id": self._extract_message_id(msg),
                                 "from": msg.get("From", ""),
@@ -367,7 +371,9 @@ class ReplyDetector:
                             )
 
                     except Exception as e:
-                        logger.warning("Error processing message", message_num=msg_num, error=str(e))
+                        logger.warning(
+                            "Error processing message", message_num=msg_num, error=str(e)
+                        )
                         continue
 
             finally:

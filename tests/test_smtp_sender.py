@@ -1,6 +1,7 @@
 """Tests for SMTP sender."""
 
 import tempfile
+from email.message import EmailMessage
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -77,7 +78,9 @@ def test_attach_file_not_found(smtp_config: SMTPConfig, email_message: "EmailMes
 
 
 @patch("cold_emailer.mailer.smtp_sender.smtplib.SMTP")
-def test_send_dry_run(mock_smtp: MagicMock, smtp_config: SMTPConfig, email_message: "EmailMessage") -> None:
+def test_send_dry_run(
+    mock_smtp: MagicMock, smtp_config: SMTPConfig, email_message: "EmailMessage"
+) -> None:
     """Test sending email in dry-run mode."""
     sender = SMTPSender(smtp_config)
 
@@ -91,7 +94,9 @@ def test_send_dry_run(mock_smtp: MagicMock, smtp_config: SMTPConfig, email_messa
 
 
 @patch("cold_emailer.mailer.smtp_sender.smtplib.SMTP")
-def test_send_success(mock_smtp: MagicMock, smtp_config: SMTPConfig, email_message: "EmailMessage") -> None:
+def test_send_success(
+    mock_smtp: MagicMock, smtp_config: SMTPConfig, email_message: "EmailMessage"
+) -> None:
     """Test successful email send."""
     sender = SMTPSender(smtp_config)
 
@@ -112,7 +117,9 @@ def test_send_success(mock_smtp: MagicMock, smtp_config: SMTPConfig, email_messa
 
 
 @patch("cold_emailer.mailer.smtp_sender.smtplib.SMTP")
-def test_send_failure(mock_smtp: MagicMock, smtp_config: SMTPConfig, email_message: "EmailMessage") -> None:
+def test_send_failure(
+    mock_smtp: MagicMock, smtp_config: SMTPConfig, email_message: "EmailMessage"
+) -> None:
     """Test email send failure."""
     sender = SMTPSender(smtp_config)
 

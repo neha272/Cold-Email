@@ -118,9 +118,7 @@ def test_resume_manifest_load(tmp_path: Path) -> None:
     # Create manifest
     manifest_file = tmp_path / "manifest.csv"
     with open(manifest_file, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(
-            f, fieldnames=["resume_id", "relative_path", "sha256", "version"]
-        )
+        writer = csv.DictWriter(f, fieldnames=["resume_id", "relative_path", "sha256", "version"])
         writer.writeheader()
         writer.writerow(
             {
@@ -154,9 +152,7 @@ def test_resume_manifest_validate(tmp_path: Path) -> None:
     # Create manifest
     manifest_file = tmp_path / "manifest.csv"
     with open(manifest_file, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(
-            f, fieldnames=["resume_id", "relative_path", "sha256", "version"]
-        )
+        writer = csv.DictWriter(f, fieldnames=["resume_id", "relative_path", "sha256", "version"])
         writer.writeheader()
         writer.writerow(
             {
@@ -196,9 +192,7 @@ def test_resume_manifest_compute_checksum_if_missing(tmp_path: Path) -> None:
     # Create manifest without checksum
     manifest_file = tmp_path / "manifest.csv"
     with open(manifest_file, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(
-            f, fieldnames=["resume_id", "relative_path", "sha256", "version"]
-        )
+        writer = csv.DictWriter(f, fieldnames=["resume_id", "relative_path", "sha256", "version"])
         writer.writeheader()
         writer.writerow(
             {

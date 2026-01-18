@@ -87,9 +87,7 @@ class ProspectRepository:
             # Create new prospect
             return self.create(prospect_data)
 
-    def get_due_prospects(
-        self, cutoff_time: datetime, limit: int | None = None
-    ) -> list[Prospect]:
+    def get_due_prospects(self, cutoff_time: datetime, limit: int | None = None) -> list[Prospect]:
         """
         Get prospects that are due for action (next_action_at <= cutoff_time or NULL for NEW).
 
@@ -210,7 +208,9 @@ class ProspectRepository:
         prospect.followup_step = step
         return prospect
 
-    def update_last_sent_at(self, prospect_id: uuid.UUID, sent_at: datetime | None = None) -> Prospect | None:
+    def update_last_sent_at(
+        self, prospect_id: uuid.UUID, sent_at: datetime | None = None
+    ) -> Prospect | None:
         """
         Update prospect's last sent timestamp.
 
@@ -227,6 +227,7 @@ class ProspectRepository:
 
         if sent_at is None:
             from datetime import datetime
+
             sent_at = datetime.utcnow()
 
         prospect.last_sent_at = sent_at
@@ -337,9 +338,7 @@ class MessageEventRepository:
             .all()
         )
 
-    def get_all_events(
-        self, limit: int | None = None, offset: int = 0
-    ) -> list[MessageEvent]:
+    def get_all_events(self, limit: int | None = None, offset: int = 0) -> list[MessageEvent]:
         """
         Get all events with optional pagination.
 

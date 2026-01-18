@@ -133,7 +133,7 @@ class Orchestrator:
                 "Calculated next action time",
                 sequence_id=sequence_id,
                 schedule_time=schedule_time,
-                next_action_at=scheduled_time.isoformat()
+                next_action_at=scheduled_time.isoformat(),
             )
 
             return scheduled_time
@@ -143,7 +143,7 @@ class Orchestrator:
                 "Failed to parse schedule_initial_at",
                 sequence_id=sequence_id,
                 schedule_time=schedule_time,
-                error=str(e)
+                error=str(e),
             )
             # Fall back to immediate sending
             return None
@@ -182,7 +182,9 @@ class Orchestrator:
             for prospect in all_prospects:
                 if prospect.status == ProspectStatus.NEW.value and prospect.next_action_at is None:
                     # Calculate scheduled time based on sequence config
-                    next_action_at = self._calculate_next_action_time(prospect.sequence_id or "default")
+                    next_action_at = self._calculate_next_action_time(
+                        prospect.sequence_id or "default"
+                    )
                     if next_action_at:
                         prospect.next_action_at = next_action_at
                         scheduled_count += 1
@@ -191,7 +193,7 @@ class Orchestrator:
                 session.commit()
                 logger.info(
                     "Scheduled NEW prospects based on sequence configuration",
-                    scheduled_count=scheduled_count
+                    scheduled_count=scheduled_count,
                 )
 
             return created, updated, errors
@@ -220,9 +222,7 @@ class Orchestrator:
             # Get all prospects with outbound message IDs and non-terminal status
             prospects = prospect_repo.get_all()
             prospects_with_messages = [
-                p
-                for p in prospects
-                if p.thread_key and not p.is_terminal_status()
+                p for p in prospects if p.thread_key and not p.is_terminal_status()
             ]
 
             if not prospects_with_messages:
@@ -298,8 +298,7 @@ class Orchestrator:
             # Additional check: Detect replies by email address for ALL active prospects
             # This catches replies even if Message-ID matching fails
             all_active_prospects = [
-                p for p in prospect_repo.get_all()
-                if not p.is_terminal_status() and p.email
+                p for p in prospect_repo.get_all() if not p.is_terminal_status() and p.email
             ]
 
             # Get unique prospect emails
@@ -309,7 +308,9 @@ class Orchestrator:
                 # Check for replies from any prospect email
                 for prospect_email in prospect_emails:
                     # Get prospects with this email
-                    prospects_for_email = [p for p in all_active_prospects if p.email == prospect_email]
+                    prospects_for_email = [
+                        p for p in all_active_prospects if p.email == prospect_email
+                    ]
                     if not prospects_for_email:
                         continue
 
@@ -391,9 +392,7 @@ class Orchestrator:
             prospect = session.merge(prospect)
 
             # Get template variables
-            variables = self.composer.get_template_variables_from_prospect(
-                prospect, self.sequences
-            )
+            variables = self.composer.get_template_variables_from_prospect(prospect, self.sequences)
 
             # Compose email
             try:
@@ -417,7 +416,9 @@ class Orchestrator:
                     if not resumes_dir.is_absolute():
                         # Resolve relative to current working directory
                         resumes_dir = Path.cwd() / resumes_dir
-                    is_valid, error_msg, resume_info = find_resume_file(prospect.resume_id, resumes_dir)
+                    is_valid, error_msg, resume_info = find_resume_file(
+                        prospect.resume_id, resumes_dir
+                    )
                     if is_valid and resume_info:
                         resume_path = Path(resume_info.get("absolute_path"))
                         # Update prospect with found resume_path if it was missing
@@ -490,7 +491,7 @@ class Orchestrator:
                     # Use resume filename from prospect data or default to resume_id
                     display_name = prospect.get("resume_display_name") or f"{prospect['resume_id']}"
                     # Format as "Resume-Name.pdf" replacing spaces with hyphens
-                    if display_name and not display_name.endswith('.pdf'):
+                    if display_name and not display_name.endswith(".pdf"):
                         resume_filename = f"Resume-{display_name.replace(' ', '_')}.pdf"
                     else:
                         resume_filename = display_name
@@ -504,7 +505,9 @@ class Orchestrator:
                         )
                     )
                 elif self.smtp_sender:
-                    success, sent_message_id, error = self.smtp_sender.send(msg, dry_run=self.dry_run)
+                    success, sent_message_id, error = self.smtp_sender.send(
+                        msg, dry_run=self.dry_run
+                    )
                     attachment_sha256 = None
                 else:
                     # Dry-run mode
@@ -531,7 +534,9 @@ class Orchestrator:
                         # Update prospect state - ensure changes are flushed
                         updated_prospect = prospect_repo.update_status(prospect.id, new_status)
                         prospect_repo.update_followup_step(prospect.id, step + 1)
-                        prospect_repo.update_next_action(prospect.id, None)  # Will be set by sequence
+                        prospect_repo.update_next_action(
+                            prospect.id, None
+                        )  # Will be set by sequence
                         prospect_repo.update_last_sent_at(prospect.id)  # Update last sent timestamp
 
                         # Store thread key
@@ -731,8 +736,10 @@ class Orchestrator:
                     export_repo = ProspectRepository(export_session)
                     all_prospects = export_repo.get_all()
                     terminal_prospects = [
-                        p for p in all_prospects
-                        if p.status in [ProspectStatus.REPLIED.value, ProspectStatus.COMPLETED.value]
+                        p
+                        for p in all_prospects
+                        if p.status
+                        in [ProspectStatus.REPLIED.value, ProspectStatus.COMPLETED.value]
                     ]
                 # Session is now closed, safe to write to Excel
 
@@ -743,8 +750,20 @@ class Orchestrator:
                         preserve_existing=True,
                     )
                     summary["exported"] = {
-                        "replied": len([p for p in terminal_prospects if p.status == ProspectStatus.REPLIED.value]),
-                        "completed": len([p for p in terminal_prospects if p.status == ProspectStatus.COMPLETED.value]),
+                        "replied": len(
+                            [
+                                p
+                                for p in terminal_prospects
+                                if p.status == ProspectStatus.REPLIED.value
+                            ]
+                        ),
+                        "completed": len(
+                            [
+                                p
+                                for p in terminal_prospects
+                                if p.status == ProspectStatus.COMPLETED.value
+                            ]
+                        ),
                     }
                     logger.info(
                         "Exported prospects to sheets",

@@ -154,9 +154,7 @@ def test_resume_manifest(tmp_path: Path) -> None:
     # Create manifest
     manifest_file = tmp_path / "manifest.csv"
     with open(manifest_file, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(
-            f, fieldnames=["resume_id", "relative_path", "sha256", "version"]
-        )
+        writer = csv.DictWriter(f, fieldnames=["resume_id", "relative_path", "sha256", "version"])
         writer.writeheader()
         writer.writerow(
             {
@@ -185,9 +183,7 @@ def test_resume_manifest_missing_resume(tmp_path: Path) -> None:
     """Test resume manifest with missing resume file."""
     manifest_file = tmp_path / "manifest.csv"
     with open(manifest_file, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(
-            f, fieldnames=["resume_id", "relative_path", "sha256", "version"]
-        )
+        writer = csv.DictWriter(f, fieldnames=["resume_id", "relative_path", "sha256", "version"])
         writer.writeheader()
         writer.writerow(
             {
@@ -239,9 +235,7 @@ def sample_resume_manifest(tmp_path: Path) -> tuple[Path, Path]:
     # Create manifest
     manifest_file = tmp_path / "manifest.csv"
     with open(manifest_file, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(
-            f, fieldnames=["resume_id", "relative_path", "sha256", "version"]
-        )
+        writer = csv.DictWriter(f, fieldnames=["resume_id", "relative_path", "sha256", "version"])
         writer.writeheader()
         writer.writerow(
             {

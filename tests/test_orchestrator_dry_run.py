@@ -5,7 +5,13 @@ from pathlib import Path
 
 import pytest
 from cold_emailer.attachments import ResumeManifest
-from cold_emailer.config import DatabaseSettings, EmailSettings, PathsSettings, Settings
+from cold_emailer.config import (
+    DatabaseSettings,
+    EmailSettings,
+    EnvSettings,
+    PathsSettings,
+    Settings,
+)
 from cold_emailer.orchestrator import Orchestrator
 from cold_emailer.state_store.models import Prospect, ProspectStatus
 from cold_emailer.state_store.repo import ProspectRepository
@@ -76,7 +82,9 @@ def test_env_settings() -> "EnvSettings":
     )
 
 
-def test_orchestrator_init(test_settings: Settings, test_env_settings: "EnvSettings", test_sequences: dict) -> None:
+def test_orchestrator_init(
+    test_settings: Settings, test_env_settings: "EnvSettings", test_sequences: dict
+) -> None:
     """Test orchestrator initialization."""
     orchestrator = Orchestrator(
         settings=test_settings,
@@ -90,7 +98,9 @@ def test_orchestrator_init(test_settings: Settings, test_env_settings: "EnvSetti
     assert orchestrator.composer is not None
 
 
-def test_get_due_prospects(test_settings: Settings, test_env_settings: "EnvSettings", test_sequences: dict) -> None:
+def test_get_due_prospects(
+    test_settings: Settings, test_env_settings: "EnvSettings", test_sequences: dict
+) -> None:
     """Test getting due prospects."""
     orchestrator = Orchestrator(
         settings=test_settings,
@@ -231,9 +241,7 @@ def test_run_daily_dry_run(
 
     manifest_file = tmp_path / "manifest.csv"
     with open(manifest_file, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(
-            f, fieldnames=["resume_id", "relative_path", "sha256", "version"]
-        )
+        writer = csv.DictWriter(f, fieldnames=["resume_id", "relative_path", "sha256", "version"])
         writer.writeheader()
         writer.writerow(
             {
@@ -249,9 +257,7 @@ def test_run_daily_dry_run(
     # Create prospects file
     prospects_file = tmp_path / "prospects.csv"
     with open(prospects_file, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(
-            f, fieldnames=["email", "full_name", "company", "resume_id"]
-        )
+        writer = csv.DictWriter(f, fieldnames=["email", "full_name", "company", "resume_id"])
         writer.writeheader()
         writer.writerow(
             {

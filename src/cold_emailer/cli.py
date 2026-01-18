@@ -8,6 +8,7 @@ import typer
 
 from cold_emailer.config import EnvSettings, load_config, load_sequences
 from cold_emailer.export import export_prospects_to_excel
+from cold_emailer.ingestion import ingest_prospects
 from cold_emailer.orchestrator import Orchestrator
 from cold_emailer.state_store.db import create_database_engine, get_session, init_database
 from cold_emailer.state_store.models import ProspectStatus
@@ -38,16 +39,14 @@ def init_db(
     logger.info("Initializing database", command="init-db")
     try:
         settings = load_config(str(config))
-        engine = create_database_engine(
-            db_path=settings.database.path, echo=settings.database.echo
-        )
+        engine = create_database_engine(db_path=settings.database.path, echo=settings.database.echo)
         init_database(engine)
         typer.echo(f"✓ Database initialized at {settings.database.path}")
         logger.info("Database initialized successfully", path=settings.database.path)
     except Exception as e:
         logger.error("Failed to initialize database", error=str(e))
         typer.echo(f"✗ Error initializing database: {e}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
@@ -77,9 +76,7 @@ def ingest(
     logger.info("Ingesting prospects", file=str(file), command="ingest")
     try:
         settings = load_config(str(config))
-        engine = create_database_engine(
-            db_path=settings.database.path, echo=settings.database.echo
-        )
+        engine = create_database_engine(db_path=settings.database.path, echo=settings.database.echo)
 
         # Get resumes directory from settings
         resumes_dir = Path(settings.paths.resumes_dir)
@@ -106,7 +103,7 @@ def ingest(
     except Exception as e:
         logger.error("Failed to ingest prospects", error=str(e))
         typer.echo(f"✗ Error: {e}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
@@ -142,6 +139,7 @@ def run(
     # Typer boolean flags: presence of flag = True, absence = False
     # But sometimes Typer doesn't properly set the value, so we check sys.argv as fallback
     import sys
+
     # Check if --dry-run flag is explicitly in command line
     has_dry_run_flag = any(arg == "--dry-run" for arg in sys.argv)
     # Use sys.argv check as primary source of truth since Typer flag isn't working reliably
@@ -207,7 +205,7 @@ def run(
     except Exception as e:
         logger.error("Failed to run automation", error=str(e))
         typer.echo(f"✗ Error: {e}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
@@ -233,9 +231,7 @@ def status(
     logger.info("Showing status", limit=limit, command="status")
     try:
         settings = load_config(str(config))
-        engine = create_database_engine(
-            db_path=settings.database.path, echo=settings.database.echo
-        )
+        engine = create_database_engine(db_path=settings.database.path, echo=settings.database.echo)
 
         with get_session(engine) as session:
             repo = ProspectRepository(session)
@@ -270,7 +266,7 @@ def status(
     except Exception as e:
         logger.error("Failed to show status", error=str(e))
         typer.echo(f"✗ Error: {e}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
@@ -304,9 +300,7 @@ def export_events(
     logger.info("Exporting events", output=str(out), command="export-events")
     try:
         settings = load_config(str(config))
-        engine = create_database_engine(
-            db_path=settings.database.path, echo=settings.database.echo
-        )
+        engine = create_database_engine(db_path=settings.database.path, echo=settings.database.echo)
 
         # Ensure output directory exists
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -337,7 +331,7 @@ def export_events(
     except Exception as e:
         logger.error("Failed to export events", error=str(e))
         typer.echo(f"✗ Error: {e}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
@@ -371,9 +365,7 @@ def export_prospects(
     logger.info("Exporting prospects", output=str(out), command="export-prospects")
     try:
         settings = load_config(str(config))
-        engine = create_database_engine(
-            db_path=settings.database.path, echo=settings.database.echo
-        )
+        engine = create_database_engine(db_path=settings.database.path, echo=settings.database.echo)
 
         # Ensure output directory exists
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -399,7 +391,9 @@ def export_prospects(
 
             # Count by category
             replied_count = sum(1 for p in prospects if p.status == ProspectStatus.REPLIED.value)
-            completed_count = sum(1 for p in prospects if p.status == ProspectStatus.COMPLETED.value)
+            completed_count = sum(
+                1 for p in prospects if p.status == ProspectStatus.COMPLETED.value
+            )
 
             typer.echo(f"\n✓ Exported {len(prospects)} prospects to {out}")
             typer.echo(f"  RESPONSE tab: {replied_count} prospects")
@@ -415,7 +409,7 @@ def export_prospects(
     except Exception as e:
         logger.error("Failed to export prospects", error=str(e))
         typer.echo(f"✗ Error: {e}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
@@ -459,7 +453,7 @@ def check_replies(
     except Exception as e:
         logger.error("Failed to check replies", error=str(e))
         typer.echo(f"✗ Error: {e}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.callback()
@@ -486,10 +480,13 @@ def web() -> None:
     try:
         logger.info("Starting web interface")
         from cold_emailer.web.app import main as web_main
+
         web_main()
     except Exception as e:
         logger.error("Failed to start web interface", error=str(e))
         typer.echo(f"✗ Error: {e}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
+
+
 if __name__ == "__main__":
     app()

@@ -89,14 +89,30 @@ def export_prospects_to_excel(
             sheet.cell(row=row_idx, column=7, value=prospect.sequence_id)
             sheet.cell(row=row_idx, column=8, value=prospect.status)
             sheet.cell(row=row_idx, column=9, value=prospect.followup_step)
-            sheet.cell(row=row_idx, column=10, value=prospect.last_sent_at.strftime("%Y-%m-%d %H:%M:%S") if prospect.last_sent_at else "")
-            sheet.cell(row=row_idx, column=11, value=prospect.created_at.strftime("%Y-%m-%d %H:%M:%S") if prospect.created_at else "")
+            sheet.cell(
+                row=row_idx,
+                column=10,
+                value=(
+                    prospect.last_sent_at.strftime("%Y-%m-%d %H:%M:%S")
+                    if prospect.last_sent_at
+                    else ""
+                ),
+            )
+            sheet.cell(
+                row=row_idx,
+                column=11,
+                value=(
+                    prospect.created_at.strftime("%Y-%m-%d %H:%M:%S") if prospect.created_at else ""
+                ),
+            )
 
         # Auto-adjust column widths
         for col_idx in range(1, len(headers) + 1):
             column_letter = sheet.cell(row=1, column=col_idx).column_letter
             max_length = 0
-            for row in sheet.iter_rows(min_row=1, max_row=sheet.max_row, min_col=col_idx, max_col=col_idx):
+            for row in sheet.iter_rows(
+                min_row=1, max_row=sheet.max_row, min_col=col_idx, max_col=col_idx
+            ):
                 cell_value = str(row[0].value) if row[0].value else ""
                 max_length = max(max_length, len(cell_value))
             sheet.column_dimensions[column_letter].width = min(max_length + 2, 50)
@@ -135,7 +151,9 @@ def export_prospects_to_excel(
                 break
 
         if email_col is None:
-            logger.warning("Could not find 'email' column in main sheet", sheet_name=main_sheet.title)
+            logger.warning(
+                "Could not find 'email' column in main sheet", sheet_name=main_sheet.title
+            )
         else:
             # Find and remove rows with exported emails
             rows_to_delete = []

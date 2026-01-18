@@ -27,12 +27,21 @@ from werkzeug.utils import secure_filename
 # Load environment variables from .env file
 load_dotenv()
 
-from cold_emailer.config import EnvSettings, load_config, load_sequences, validate_env_on_startup
-from cold_emailer.orchestrator import Orchestrator
-from cold_emailer.state_store.db import create_database_engine, get_session, init_database
-from cold_emailer.state_store.models import ProspectStatus
-from cold_emailer.state_store.repo import MessageEventRepository, ProspectRepository
-from cold_emailer.utils import get_logger
+from cold_emailer.config import (  # noqa: E402
+    EnvSettings,
+    load_config,
+    load_sequences,
+    validate_env_on_startup,
+)
+from cold_emailer.orchestrator import Orchestrator  # noqa: E402
+from cold_emailer.state_store.db import (  # noqa: E402
+    create_database_engine,
+    get_session,
+    init_database,
+)
+from cold_emailer.state_store.models import ProspectStatus  # noqa: E402
+from cold_emailer.state_store.repo import MessageEventRepository, ProspectRepository  # noqa: E402
+from cold_emailer.utils import get_logger  # noqa: E402
 
 logger = get_logger(__name__)
 
@@ -66,6 +75,7 @@ limiter = Limiter(
 auth = HTTPBasicAuth()
 AUTH_ENABLED = bool(os.environ.get("WEB_AUTH_USERNAME") and os.environ.get("WEB_AUTH_PASSWORD"))
 
+
 @auth.verify_password
 def verify_password(username: str, password: str) -> bool:
     """Verify username and password for basic auth."""
@@ -87,6 +97,7 @@ def verify_password(username: str, password: str) -> bool:
         return password == expected_password_plain
 
     return False
+
 
 # Load configuration
 settings = load_config(CONFIG_DIR / "settings.yaml")
@@ -152,7 +163,7 @@ def calculate_next_action_time(sequence_id: str) -> datetime | None:
             "Calculated next action time",
             sequence_id=sequence_id,
             schedule_time=schedule_time,
-            next_action_at=scheduled_time.isoformat()
+            next_action_at=scheduled_time.isoformat(),
         )
 
         return scheduled_time
@@ -162,7 +173,7 @@ def calculate_next_action_time(sequence_id: str) -> datetime | None:
             "Failed to parse schedule_initial_at",
             sequence_id=sequence_id,
             schedule_time=schedule_time,
-            error=str(e)
+            error=str(e),
         )
         # Fall back to immediate sending
         return None
@@ -176,19 +187,29 @@ def health():
         with get_session(engine) as session:
             session.execute(text("SELECT 1"))
 
-        return jsonify({
-            "status": "healthy",
-            "service": "cold-emailer",
-            "timestamp": datetime.now(UTC).isoformat()
-        }), 200
+        return (
+            jsonify(
+                {
+                    "status": "healthy",
+                    "service": "cold-emailer",
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+            ),
+            200,
+        )
     except Exception as e:
         logger.error("Health check failed", error=str(e))
-        return jsonify({
-            "status": "unhealthy",
-            "service": "cold-emailer",
-            "error": str(e),
-            "timestamp": datetime.now(UTC).isoformat()
-        }), 503
+        return (
+            jsonify(
+                {
+                    "status": "unhealthy",
+                    "service": "cold-emailer",
+                    "error": str(e),
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+            ),
+            503,
+        )
 
 
 @app.route("/")
@@ -231,8 +252,14 @@ def index():
         if "no such table" in error_msg.lower():
             logger.error("Database not initialized", error=error_msg)
             # Determine if running in Docker or locally
-            is_docker = os.path.exists("/.dockerenv") or os.environ.get("DOCKER_CONTAINER") == "true"
-            init_cmd = "docker compose exec cold-emailer cold-emailer init-db" if is_docker else "poetry run cold-emailer init-db"
+            is_docker = (
+                os.path.exists("/.dockerenv") or os.environ.get("DOCKER_CONTAINER") == "true"
+            )
+            init_cmd = (
+                "docker compose exec cold-emailer cold-emailer init-db"
+                if is_docker
+                else "poetry run cold-emailer init-db"
+            )
 
             return render_template(
                 "error.html",
@@ -263,7 +290,8 @@ def prospects_list():
         if search_query:
             search_lower = search_query.lower()
             filtered_prospects = [
-                p for p in filtered_prospects
+                p
+                for p in filtered_prospects
                 if (search_lower in p.email.lower() if p.email else False)
                 or (search_lower in p.full_name.lower() if p.full_name else False)
                 or (search_lower in p.company.lower() if p.company else False)
@@ -284,6 +312,7 @@ def add_prospect():
     """Add a new prospect."""
     # Get available resumes
     from cold_emailer.attachments import list_available_resumes
+
     resumes_dir = WORKSPACE_ROOT / settings.paths.resumes_dir
     available_resumes = list_available_resumes(resumes_dir)
 
@@ -298,7 +327,10 @@ def add_prospect():
                     "full_name": request.form.get("full_name", "").strip(),
                     "company": request.form.get("company", "").strip(),
                     "resume_id": request.form.get("resume_id", "").strip(),
-                    "resume_display_name": request.form.get("resume_display_name", "Neha Sutariya").strip() or "Neha Sutariya",
+                    "resume_display_name": request.form.get(
+                        "resume_display_name", "Neha Sutariya"
+                    ).strip()
+                    or "Neha Sutariya",
                     "role_title": request.form.get("role_title", "").strip() or None,
                     "sequence_id": request.form.get("sequence_id", "default").strip() or "default",
                     "timezone": request.form.get("timezone", "").strip() or None,
@@ -307,33 +339,73 @@ def add_prospect():
                 # Validate required fields
                 if not prospect_data["email"]:
                     flash("Email is required", "error")
-                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict, resumes=available_resumes)
+                    return render_template(
+                        "add_prospect.html",
+                        prospect=prospect_data,
+                        sequences=sequences_dict,
+                        resumes=available_resumes,
+                    )
                 if not prospect_data["full_name"]:
                     flash("Full name is required", "error")
-                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict, resumes=available_resumes)
+                    return render_template(
+                        "add_prospect.html",
+                        prospect=prospect_data,
+                        sequences=sequences_dict,
+                        resumes=available_resumes,
+                    )
                 if not prospect_data["company"]:
                     flash("Company is required", "error")
-                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict, resumes=available_resumes)
+                    return render_template(
+                        "add_prospect.html",
+                        prospect=prospect_data,
+                        sequences=sequences_dict,
+                        resumes=available_resumes,
+                    )
                 if not prospect_data["resume_id"]:
                     flash("Resume ID is required", "error")
-                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict, resumes=available_resumes)
+                    return render_template(
+                        "add_prospect.html",
+                        prospect=prospect_data,
+                        sequences=sequences_dict,
+                        resumes=available_resumes,
+                    )
 
                 # Check if prospect already exists
                 existing = prospect_repo.get_by_email(prospect_data["email"])
                 if existing:
                     flash(f"Prospect with email {prospect_data['email']} already exists", "error")
-                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict, resumes=available_resumes)
+                    return render_template(
+                        "add_prospect.html",
+                        prospect=prospect_data,
+                        sequences=sequences_dict,
+                        resumes=available_resumes,
+                    )
 
                 # Validate resume file exists
                 from cold_emailer.attachments import find_resume_file
-                is_valid, error_msg, resume_info = find_resume_file(prospect_data["resume_id"], resumes_dir)
+
+                is_valid, error_msg, resume_info = find_resume_file(
+                    prospect_data["resume_id"], resumes_dir
+                )
                 if not is_valid:
-                    flash(f"Resume file not found: {error_msg or prospect_data['resume_id']}", "error")
-                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict, resumes=available_resumes)
+                    flash(
+                        f"Resume file not found: {error_msg or prospect_data['resume_id']}", "error"
+                    )
+                    return render_template(
+                        "add_prospect.html",
+                        prospect=prospect_data,
+                        sequences=sequences_dict,
+                        resumes=available_resumes,
+                    )
 
                 if not resume_info:
                     flash(f"Resume info not found: {prospect_data['resume_id']}", "error")
-                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict, resumes=available_resumes)
+                    return render_template(
+                        "add_prospect.html",
+                        prospect=prospect_data,
+                        sequences=sequences_dict,
+                        resumes=available_resumes,
+                    )
 
                 prospect_data["resume_path"] = str(resume_info.get("absolute_path"))
                 prospect_data["resume_sha256"] = resume_info.get("sha256")
@@ -341,7 +413,9 @@ def add_prospect():
                 prospect_data["followup_step"] = 0
 
                 # Calculate next_action_at based on sequence configuration
-                prospect_data["next_action_at"] = calculate_next_action_time(prospect_data["sequence_id"])
+                prospect_data["next_action_at"] = calculate_next_action_time(
+                    prospect_data["sequence_id"]
+                )
 
                 # Create prospect
                 prospect_repo.create(prospect_data)
@@ -352,10 +426,17 @@ def add_prospect():
         except Exception as e:
             logger.error("Failed to add prospect", error=str(e))
             flash(f"Error adding prospect: {str(e)}", "error")
-            return render_template("add_prospect.html", prospect=request.form.to_dict(), sequences=sequences_dict, resumes=available_resumes)
+            return render_template(
+                "add_prospect.html",
+                prospect=request.form.to_dict(),
+                sequences=sequences_dict,
+                resumes=available_resumes,
+            )
 
     # GET request - show form
-    return render_template("add_prospect.html", prospect={}, sequences=sequences_dict, resumes=available_resumes)
+    return render_template(
+        "add_prospect.html", prospect={}, sequences=sequences_dict, resumes=available_resumes
+    )
 
 
 @app.route("/prospects/<prospect_id>/edit", methods=["GET", "POST"])
@@ -364,6 +445,7 @@ def edit_prospect(prospect_id):
     """Edit an existing prospect."""
     # Get available resumes
     from cold_emailer.attachments import list_available_resumes
+
     resumes_dir = WORKSPACE_ROOT / settings.paths.resumes_dir
     available_resumes = list_available_resumes(resumes_dir)
 
@@ -383,7 +465,10 @@ def edit_prospect(prospect_id):
                     "full_name": request.form.get("full_name", "").strip(),
                     "company": request.form.get("company", "").strip(),
                     "resume_id": request.form.get("resume_id", "").strip(),
-                    "resume_display_name": request.form.get("resume_display_name", "Neha Sutariya").strip() or "Neha Sutariya",
+                    "resume_display_name": request.form.get(
+                        "resume_display_name", "Neha Sutariya"
+                    ).strip()
+                    or "Neha Sutariya",
                     "role_title": request.form.get("role_title", "").strip() or None,
                     "sequence_id": request.form.get("sequence_id", "default").strip() or "default",
                     "timezone": request.form.get("timezone", "").strip() or None,
@@ -392,26 +477,61 @@ def edit_prospect(prospect_id):
                 # Validate required fields
                 if not prospect_data["email"]:
                     flash("Email is required", "error")
-                    return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences_dict, resumes=available_resumes)
+                    return render_template(
+                        "edit_prospect.html",
+                        prospect=prospect,
+                        prospect_data=prospect_data,
+                        sequences=sequences_dict,
+                        resumes=available_resumes,
+                    )
                 if not prospect_data["full_name"]:
                     flash("Full name is required", "error")
-                    return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences_dict, resumes=available_resumes)
+                    return render_template(
+                        "edit_prospect.html",
+                        prospect=prospect,
+                        prospect_data=prospect_data,
+                        sequences=sequences_dict,
+                        resumes=available_resumes,
+                    )
                 if not prospect_data["company"]:
                     flash("Company is required", "error")
-                    return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences_dict, resumes=available_resumes)
+                    return render_template(
+                        "edit_prospect.html",
+                        prospect=prospect,
+                        prospect_data=prospect_data,
+                        sequences=sequences_dict,
+                        resumes=available_resumes,
+                    )
                 if not prospect_data["resume_id"]:
                     flash("Resume ID is required", "error")
-                    return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences_dict, resumes=available_resumes)
+                    return render_template(
+                        "edit_prospect.html",
+                        prospect=prospect,
+                        prospect_data=prospect_data,
+                        sequences=sequences_dict,
+                        resumes=available_resumes,
+                    )
 
                 # Update resume if changed
                 if prospect_data["resume_id"] != prospect.resume_id:
                     from cold_emailer.attachments import find_resume_file
-                    is_valid, resume_path, resume_info = find_resume_file(prospect_data["resume_id"], resumes_dir)
+
+                    is_valid, resume_path, resume_info = find_resume_file(
+                        prospect_data["resume_id"], resumes_dir
+                    )
                     if not is_valid:
                         flash(f"Resume file not found: {prospect_data['resume_id']}", "error")
-                        return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences_dict, resumes=available_resumes)
+                        return render_template(
+                            "edit_prospect.html",
+                            prospect=prospect,
+                            prospect_data=prospect_data,
+                            sequences=sequences_dict,
+                            resumes=available_resumes,
+                        )
                     prospect_data["resume_path"] = str(resume_path)
-                    prospect_data["resume_sha256"] = resume_info.get("sha256") if resume_info else None
+                    prospect_data["resume_sha256"] = (
+                        resume_info.get("sha256") if resume_info else None
+                    )
 
                 # Update prospect (preserve status and followup_step unless explicitly changed)
                 prospect.email = prospect_data["email"]
@@ -432,10 +552,22 @@ def edit_prospect(prospect_id):
             except Exception as e:
                 logger.error("Failed to update prospect", error=str(e))
                 flash(f"Error updating prospect: {str(e)}", "error")
-                return render_template("edit_prospect.html", prospect=prospect, prospect_data=request.form.to_dict(), sequences=sequences_dict, resumes=available_resumes)
+                return render_template(
+                    "edit_prospect.html",
+                    prospect=prospect,
+                    prospect_data=request.form.to_dict(),
+                    sequences=sequences_dict,
+                    resumes=available_resumes,
+                )
 
         # GET request - show form
-        return render_template("edit_prospect.html", prospect=prospect, prospect_data={}, sequences=sequences_dict, resumes=available_resumes)
+        return render_template(
+            "edit_prospect.html",
+            prospect=prospect,
+            prospect_data={},
+            sequences=sequences_dict,
+            resumes=available_resumes,
+        )
 
 
 @app.route("/prospects/import", methods=["GET", "POST"])
@@ -466,7 +598,9 @@ def import_prospects():
                 dry_run=False,
             )
 
-            created, updated, errors = orchestrator.ingest_prospects_file(filepath, reset_state=False)
+            created, updated, errors = orchestrator.ingest_prospects_file(
+                filepath, reset_state=False
+            )
 
             # Clean up temp file
             if filepath.exists():
@@ -584,6 +718,7 @@ def stats():
 
         # Event timeline (last 30 days)
         from collections import defaultdict
+
         events_by_date = defaultdict(int)
         for event in all_events:
             if event.occurred_at:
@@ -625,6 +760,7 @@ def settings_page():
 def resumes_page():
     """View and manage resume files."""
     from cold_emailer.attachments import list_available_resumes
+
     resumes_dir = WORKSPACE_ROOT / settings.paths.resumes_dir
 
     # Ensure resumes directory exists
@@ -666,13 +802,17 @@ def upload_resume():
 
         # Check if file already exists
         if filepath.exists():
-            flash(f"Resume file '{filename}' already exists. Please rename or delete the existing file first.", "error")
+            flash(
+                f"Resume file '{filename}' already exists. Please rename or delete the existing file first.",
+                "error",
+            )
             return redirect(url_for("resumes_page"))
 
         file.save(str(filepath))
 
         # Validate the uploaded file
         from cold_emailer.attachments import validate_resume_file
+
         is_valid, error_msg = validate_resume_file(filepath)
 
         if not is_valid:
@@ -699,6 +839,7 @@ def delete_resume(resume_id):
 
         # Find the resume file
         from cold_emailer.attachments import find_resume_file
+
         is_valid, error_msg, resume_info = find_resume_file(resume_id, resumes_dir)
 
         if not is_valid or not resume_info:
@@ -714,7 +855,7 @@ def delete_resume(resume_id):
             if prospects_using_resume:
                 flash(
                     f"Cannot delete resume '{resume_id}': it is being used by {len(prospects_using_resume)} prospect(s)",
-                    "error"
+                    "error",
                 )
                 return redirect(url_for("resumes_page"))
 
@@ -826,12 +967,14 @@ def add_sequence():
 
                 if step_num and template:
                     try:
-                        steps.append({
-                            "step": int(step_num),
-                            "template": template,
-                            "wait_days": int(wait_days) if wait_days else 0,
-                            "subject": subject,
-                        })
+                        steps.append(
+                            {
+                                "step": int(step_num),
+                                "template": template,
+                                "wait_days": int(wait_days) if wait_days else 0,
+                                "subject": subject,
+                            }
+                        )
                     except ValueError:
                         continue
 
@@ -853,7 +996,9 @@ def add_sequence():
 
             # Save to file
             with open(sequences_path, "w") as f:
-                yaml.dump(sequences_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+                yaml.dump(
+                    sequences_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True
+                )
 
             # Reload sequences
             reload_sequences()
@@ -905,12 +1050,14 @@ def edit_sequence(sequence_id):
 
                 if step_num and template:
                     try:
-                        steps.append({
-                            "step": int(step_num),
-                            "template": template,
-                            "wait_days": int(wait_days) if wait_days else 0,
-                            "subject": subject,
-                        })
+                        steps.append(
+                            {
+                                "step": int(step_num),
+                                "template": template,
+                                "wait_days": int(wait_days) if wait_days else 0,
+                                "subject": subject,
+                            }
+                        )
 
                         # Save template content to file
                         if template_content:
@@ -932,6 +1079,7 @@ def edit_sequence(sequence_id):
             # Load existing sequences
             sequences_path = CONFIG_DIR / "sequences.yaml"
             import yaml
+
             with open(sequences_path) as f:
                 sequences_data = yaml.safe_load(f) or {}
 
@@ -944,7 +1092,9 @@ def edit_sequence(sequence_id):
 
             # Save to file
             with open(sequences_path, "w") as f:
-                yaml.dump(sequences_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+                yaml.dump(
+                    sequences_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True
+                )
 
             # Reload sequences
             reload_sequences()
@@ -1023,6 +1173,8 @@ def format_datetime(value):
     local_time = value.astimezone(chicago_tz)
 
     return local_time.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+
 @app.template_filter("timesince")
 def time_since(value):
     """Human-readable time since in Chicago timezone."""
@@ -1075,27 +1227,28 @@ def main():
     # Validate environment variables on startup
     is_valid, errors = validate_env_on_startup(skip_email_check=False)
     if not is_valid:
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("❌ Environment Validation Failed")
-        print("="*60)
+        print("=" * 60)
         print("\nMissing required environment variables:")
         for error in errors:
             print(f"  • {error}")
         print("\nPlease set these variables in your .env file or environment.")
         print("See .env.example for reference.")
-        print("="*60 + "\n")
+        print("=" * 60 + "\n")
         # Don't exit in production Docker - allow web UI access
         if os.environ.get("DOCKER_CONTAINER") != "true":
             import sys
+
             sys.exit(1)
 
     # Get port from environment or default to 5000
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_ENV", "production") == "development"
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("🚀 Cold Email Campaign Manager - Web Interface")
-    print("="*60)
+    print("=" * 60)
     print(f"\n📍 Server running at: http://0.0.0.0:{port}")
     print(f"📁 Workspace: {WORKSPACE_ROOT}")
     print(f"🗄️  Database: {settings.database.path}")

@@ -113,7 +113,8 @@ def parse_csv(file_path: Path) -> list[dict[str, Any]]:
                     "full_name": full_name,
                     "company": company,
                     "resume_id": resume_id,
-                    "resume_display_name": row.get("resume_display_name", "Neha Sutariya").strip() or "Neha Sutariya",
+                    "resume_display_name": row.get("resume_display_name", "Neha Sutariya").strip()
+                    or "Neha Sutariya",
                     "sequence_id": row.get("sequence_id", "default").strip() or "default",
                     "role_title": row.get("role_title", "").strip() or None,
                     "timezone": row.get("timezone", "").strip() or None,
@@ -204,8 +205,12 @@ def parse_excel(file_path: Path) -> list[dict[str, Any]]:
                     full_name = (
                         str(row[col_map["full_name"]]).strip() if row[col_map["full_name"]] else ""
                     )
-                    company = str(row[col_map["company"]]).strip() if row[col_map["company"]] else ""
-                    resume_id = str(row[col_map["resume_id"]]).strip() if row[col_map["resume_id"]] else ""
+                    company = (
+                        str(row[col_map["company"]]).strip() if row[col_map["company"]] else ""
+                    )
+                    resume_id = (
+                        str(row[col_map["resume_id"]]).strip() if row[col_map["resume_id"]] else ""
+                    )
 
                     # Validate required fields
                     if not email:
@@ -242,7 +247,8 @@ def parse_excel(file_path: Path) -> list[dict[str, Any]]:
                         "resume_id": resume_id,
                         "sequence_id": (
                             str(row[col_map["sequence_id"]]).strip()
-                            if col_map.get("sequence_id") is not None and row[col_map["sequence_id"]]
+                            if col_map.get("sequence_id") is not None
+                            and row[col_map["sequence_id"]]
                             else "default"
                         ),
                         "role_title": (

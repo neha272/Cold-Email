@@ -127,7 +127,9 @@ def test_is_reply_by_subject_and_from_wrong_sender(reply_detector: ReplyDetector
 
 
 @patch("cold_emailer.mailer.imap_reply_detector.imaplib.IMAP4_SSL")
-def test_detect_replies_by_message_id(mock_imap_class: MagicMock, reply_detector: ReplyDetector) -> None:
+def test_detect_replies_by_message_id(
+    mock_imap_class: MagicMock, reply_detector: ReplyDetector
+) -> None:
     """Test detecting replies by Message-ID."""
     # Mock IMAP connection
     mock_imap = MagicMock()
@@ -161,7 +163,9 @@ def test_detect_replies_by_message_id(mock_imap_class: MagicMock, reply_detector
 
 
 @patch("cold_emailer.mailer.imap_reply_detector.imaplib.IMAP4_SSL")
-def test_detect_replies_no_messages(mock_imap_class: MagicMock, reply_detector: ReplyDetector) -> None:
+def test_detect_replies_no_messages(
+    mock_imap_class: MagicMock, reply_detector: ReplyDetector
+) -> None:
     """Test detecting replies when no messages found."""
     mock_imap = MagicMock()
     mock_imap_class.return_value = mock_imap

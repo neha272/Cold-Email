@@ -37,7 +37,7 @@ def create_database_engine(db_path: str, echo: bool = False) -> Engine:
 
     # Enable foreign keys for SQLite
     @event.listens_for(engine, "connect")
-    def set_sqlite_pragma(dbapi_conn: Any, connection_record: Any) -> None:  # type: ignore
+    def set_sqlite_pragma(dbapi_conn: Any, connection_record: Any) -> None:
         """Enable foreign key constraints in SQLite."""
         cursor = dbapi_conn.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")

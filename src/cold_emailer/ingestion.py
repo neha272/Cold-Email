@@ -5,7 +5,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from openpyxl import load_workbook
+from openpyxl import load_workbook  # type: ignore[import-untyped]
 
 from cold_emailer.attachments import find_resume_file
 from cold_emailer.utils import get_logger

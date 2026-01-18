@@ -240,7 +240,7 @@ class EmailComposer:
         steps = sequence.get("steps", [])
         for step_config in steps:
             if step_config.get("step") == step:
-                return step_config
+                return step_config  # type: ignore[no-any-return]
 
         return None
 

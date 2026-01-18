@@ -8,7 +8,7 @@ from cold_emailer.config import load_config
 from cold_emailer.state_store.db import create_database_engine, get_session
 
 
-def migrate_add_resume_display_name():
+def migrate_add_resume_display_name() -> None:
     """Add resume_display_name column if it doesn't exist."""
     # Load config
     config = load_config()

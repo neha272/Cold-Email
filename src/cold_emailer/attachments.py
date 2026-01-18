@@ -87,7 +87,7 @@ def list_available_resumes(resumes_dir: Path) -> list[dict[str, Any]]:
     Returns:
         List of dictionaries with resume info (filename, size, modified_time)
     """
-    resumes = []
+    resumes: list[dict[str, Any]] = []
 
     if not resumes_dir.exists() or not resumes_dir.is_dir():
         logger.warning("Resumes directory not found", path=str(resumes_dir))
@@ -111,7 +111,7 @@ def list_available_resumes(resumes_dir: Path) -> list[dict[str, Any]]:
             )
 
     # Sort by modified time (newest first)
-    resumes.sort(key=lambda x: x["modified_time"], reverse=True)
+    resumes.sort(key=lambda x: x["modified_time"], reverse=True)  # type: ignore[arg-type, return-value]
 
     logger.info("Listed available resumes", count=len(resumes))
     return resumes
@@ -213,7 +213,7 @@ class ResumeManifest:
 
         if file_ext in (".xlsx", ".xls"):
             # Load from Excel
-            from openpyxl import load_workbook
+            from openpyxl import load_workbook  # type: ignore[import-untyped]
 
             workbook = load_workbook(self.manifest_path, read_only=True, data_only=True)
             sheet = workbook.active

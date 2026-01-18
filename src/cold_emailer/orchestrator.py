@@ -243,11 +243,11 @@ class Orchestrator:
             # Process detected replies
             for outbound_id, reply_list in replies.items():
                 if reply_list:
-                    prospect = prospect_by_message_id.get(outbound_id)
+                    prospect = prospect_by_message_id.get(outbound_id)  # type: ignore[assignment]
                     if prospect:
                         # Update prospect status
                         prospect_repo.update_status(prospect.id, ProspectStatus.REPLIED)
-                        prospect_repo.update_next_action(prospect.id, None)
+                        prospect_repo.update_next_action(prospect.id, None)  # type: ignore[arg-type]
 
                         # Log reply event
                         for reply_info in reply_list:
@@ -283,7 +283,7 @@ class Orchestrator:
                             )
                             if fallback_replies:
                                 prospect_repo.update_status(prospect.id, ProspectStatus.REPLIED)
-                                prospect_repo.update_next_action(prospect.id, None)
+                                prospect_repo.update_next_action(prospect.id, None)  # type: ignore[arg-type]
                                 for reply_info in fallback_replies:
                                     event_repo.create(
                                         {
@@ -334,7 +334,7 @@ class Orchestrator:
                             for prospect in prospects_for_email:
                                 if prospect.status != ProspectStatus.REPLIED.value:
                                     prospect_repo.update_status(prospect.id, ProspectStatus.REPLIED)
-                                    prospect_repo.update_next_action(prospect.id, None)
+                                    prospect_repo.update_next_action(prospect.id, None)  # type: ignore[arg-type]
 
                                     # Log reply event
                                     for reply_info in email_replies:
@@ -420,7 +420,7 @@ class Orchestrator:
                         prospect.resume_id, resumes_dir
                     )
                     if is_valid and resume_info:
-                        resume_path = Path(resume_info.get("absolute_path"))
+                        resume_path = Path(resume_info.get("absolute_path"))  # type: ignore[arg-type]
                         # Update prospect with found resume_path if it was missing
                         if not prospect.resume_path:
                             prospect.resume_path = str(resume_path)
@@ -452,7 +452,7 @@ class Orchestrator:
                             }
                         )
                         prospect_repo.update_status(prospect.id, ProspectStatus.ERROR)
-                        prospect_repo.update_next_action(prospect.id, None)
+                        prospect_repo.update_next_action(prospect.id, None)  # type: ignore[arg-type]
                         return False, None
                 else:
                     logger.error(
@@ -470,7 +470,7 @@ class Orchestrator:
                         }
                     )
                     prospect_repo.update_status(prospect.id, ProspectStatus.ERROR)
-                    prospect_repo.update_next_action(prospect.id, None)
+                    prospect_repo.update_next_action(prospect.id, None)  # type: ignore[arg-type]
                     return False, None
 
                 # Log send attempt (only in live mode, not dry-run)
@@ -571,11 +571,11 @@ class Orchestrator:
                         if step_config:
                             wait_days = step_config.get("wait_days", 0)
                             next_action = datetime.utcnow() + timedelta(days=wait_days)
-                            prospect_repo.update_next_action(prospect.id, next_action)
+                            prospect_repo.update_next_action(prospect.id, next_action)  # type: ignore[arg-type]
                         else:
                             # No more steps, mark as completed
                             prospect_repo.update_status(prospect.id, ProspectStatus.COMPLETED)
-                            prospect_repo.update_next_action(prospect.id, None)
+                            prospect_repo.update_next_action(prospect.id, None)  # type: ignore[arg-type]
                     else:
                         # Dry-run mode: only log what would happen (don't create events or update state)
                         logger.info(
@@ -703,7 +703,7 @@ class Orchestrator:
                 with get_session(self.engine) as session:
                     prospect_repo = ProspectRepository(session)
                     prospect_repo.update_status(prospect.id, ProspectStatus.COMPLETED)
-                    prospect_repo.update_next_action(prospect.id, None)
+                    prospect_repo.update_next_action(prospect.id, None)  # type: ignore[arg-type]
                 continue
 
             template_name = step_config.get("template")

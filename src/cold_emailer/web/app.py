@@ -3,15 +3,21 @@
 import os
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 try:
-    from zoneinfo import ZoneInfo
+    from zoneinfo import ZoneInfo  # type: ignore[attr-defined]
+
+    HAVE_ZONEINFO = True
 except ImportError:
     # Fallback for Python < 3.9
     try:
-        from backports.zoneinfo import ZoneInfo
+        from backports.zoneinfo import ZoneInfo  # type: ignore[import-not-found, no-redef]
+
+        HAVE_ZONEINFO = True
     except ImportError:
-        ZoneInfo = None
+        ZoneInfo = None  # type: ignore[assignment, misc, no-redef]
+        HAVE_ZONEINFO = False
 
 import yaml
 from dotenv import load_dotenv
@@ -100,9 +106,9 @@ def verify_password(username: str, password: str) -> bool:
 
 
 # Load configuration
-settings = load_config(CONFIG_DIR / "settings.yaml")
+settings = load_config(str(CONFIG_DIR / "settings.yaml"))
 env_settings = EnvSettings()
-sequences_data = load_sequences(CONFIG_DIR / "sequences.yaml")
+sequences_data = load_sequences(str(CONFIG_DIR / "sequences.yaml"))
 # Keep full structure for orchestrator (it expects {"sequences": {...}})
 sequences = sequences_data if isinstance(sequences_data, dict) else {"sequences": {}}
 # Extract just sequences dict for templates
@@ -117,10 +123,10 @@ except Exception as e:
     logger.warning("Database initialization warning", error=str(e))
 
 
-def reload_sequences():
+def reload_sequences() -> dict[str, Any]:
     """Reload sequences from file."""
     global sequences, sequences_dict
-    sequences_data = load_sequences(CONFIG_DIR / "sequences.yaml")
+    sequences_data = load_sequences(str(CONFIG_DIR / "sequences.yaml"))
     # Keep full structure for orchestrator
     sequences = sequences_data if isinstance(sequences_data, dict) else {"sequences": {}}
     # Extract just sequences dict for templates
@@ -1155,7 +1161,7 @@ def format_datetime(value):
             return value
 
     # Get Chicago timezone (UTC-6 or UTC-5 depending on DST)
-    if ZoneInfo:
+    if HAVE_ZONEINFO and ZoneInfo is not None:
         chicago_tz = ZoneInfo("America/Chicago")
     else:
         # Fallback: Use fixed UTC-6 offset (CST)
@@ -1164,7 +1170,7 @@ def format_datetime(value):
     # Assume UTC if datetime is naive, otherwise use its timezone
     if value.tzinfo is None:
         # Naive datetime - assume it's UTC
-        if ZoneInfo:
+        if HAVE_ZONEINFO and ZoneInfo is not None:
             value = value.replace(tzinfo=ZoneInfo("UTC"))
         else:
             value = value.replace(tzinfo=UTC)
@@ -1191,7 +1197,7 @@ def time_since(value):
             return value
 
     # Get Chicago timezone
-    if ZoneInfo:
+    if HAVE_ZONEINFO and ZoneInfo is not None:
         chicago_tz = ZoneInfo("America/Chicago")
         utc_tz = ZoneInfo("UTC")
     else:

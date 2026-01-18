@@ -163,11 +163,11 @@ def load_config(config_path: str = "config/settings.yaml") -> Settings:
                             default = default_part[8:-1].strip().strip("'\"")
                         elif "int" in default_part:
                             try:
-                                default = int(os.getenv(var_name, "0"))
+                                default = int(os.getenv(var_name, "0"))  # type: ignore[assignment]
                             except ValueError:
-                                default = 0
+                                default = 0  # type: ignore[assignment]
                         elif "bool" in default_part:
-                            default = os.getenv(var_name, "false").lower() == "true"
+                            default = os.getenv(var_name, "false").lower() == "true"  # type: ignore[assignment]
                 return os.getenv(var_name, default)
             return obj
         return obj
@@ -196,11 +196,11 @@ def load_sequences(sequences_path: str = "config/sequences.yaml") -> dict[str, A
 
     try:
         with open(seq_file, encoding="utf-8") as f:
-            return yaml.safe_load(f)
+            return yaml.safe_load(f)  # type: ignore[no-any-return]
     except UnicodeDecodeError:
         # Try with different encoding if UTF-8 fails
         with open(seq_file, encoding="utf-8-sig") as f:
-            return yaml.safe_load(f)
+            return yaml.safe_load(f)  # type: ignore[no-any-return]
 
 
 def validate_env_on_startup(skip_email_check: bool = False) -> tuple[bool, list[str]]:

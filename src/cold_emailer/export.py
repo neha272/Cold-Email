@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from openpyxl import Workbook, load_workbook
-from openpyxl.styles import Font, PatternFill
+from openpyxl import Workbook, load_workbook  # type: ignore[import-untyped]
+from openpyxl.styles import Font, PatternFill  # type: ignore[import-untyped]
 
 from cold_emailer.state_store.models import Prospect, ProspectStatus
 from cold_emailer.utils import get_logger

@@ -46,8 +46,8 @@ A production-quality local cold-email automation tool (Hunter-like) built in Pyt
         │                    │                    │
         ▼                    ▼                    ▼
 ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
-│   Resume     │   │   Templates   │   │   Reply      │
-│   Manifest   │   │   (Markdown) │   │   Detector   │
+│   Resumes    │   │   Templates   │   │   Reply      │
+│   (PDFs)     │   │   (Markdown) │   │   Detector   │
 └──────────────┘   └──────────────┘   └──────────────┘
                              │
                              ▼
@@ -106,6 +106,7 @@ The fastest way to get started is using Docker. The application runs as a web in
 The Docker setup automatically:
 - ✅ Builds an optimized production image
 - ✅ Runs as a non-root user for security
+- ✅ Uses Gunicorn production WSGI server (not Flask dev server)
 - ✅ Persists data in `./data` and `./logs` directories
 - ✅ Includes health checks
 - ✅ Restarts automatically on failure
@@ -194,8 +195,8 @@ cold_emailer/
 │   └── sequences.yaml       # Follow-up sequence definitions
 │
 ├── data/
-│   ├── prospects.xlsx       # Input prospects file (example, Excel or CSV)
-│   ├── resume_manifest.xlsx # Resume mapping and checksums (Excel or CSV)
+│   ├── prospects.xlsx       # Input prospects file (Excel or CSV)
+│   ├── resumes/             # PDF resume files directory
 │   └── state.db             # SQLite database (created at runtime)
 │
 ├── assets/
@@ -340,7 +341,6 @@ poetry run cold-emailer ingest --file data/prospects.csv
 ```
 
 Options:
-- `--manifest`: Path to resume manifest (default: `data/resume_manifest.xlsx`)
 - `--reset-state`: Reset state for existing prospects
 
 #### Run Automation (Dry Run)
@@ -416,21 +416,15 @@ poetry run cold-emailer export-events --out logs/events.jsonl
 
 **File:** `data/prospects.xlsx` (or `prospects.csv`)
 
-### Resume Manifest File (Excel or CSV)
+### Resume Files
 
-**Required columns:**
-- `resume_id` - Unique identifier
-- `relative_path` - Path relative to repo root
-- `sha256` - SHA256 checksum (computed automatically if blank)
-- `version` - Optional version string
+Resume files should be placed in the `data/resumes/` directory. The `resume_id` in your prospects file should match the filename (without extension) of the PDF file.
 
-**Example (Excel/CSV):**
-| resume_id | relative_path | sha256 | version |
-|-----------|---------------|--------|---------|
-| RES-00042 | assets/resumes/RES-00042.pdf | (auto-computed) | 1.0 |
-| RES-00043 | assets/resumes/RES-00043.pdf | (auto-computed) | 1.0 |
+**Example:**
+- Prospect has `resume_id: "RES-001"`
+- Resume file should be: `data/resumes/RES-001.pdf`
 
-**File:** `data/resume_manifest.xlsx` (or `resume_manifest.csv`)
+The system automatically validates resume files and computes SHA256 checksums for security.
 
 ## 🛡️ Safety Features
 
@@ -525,40 +519,187 @@ This project is implemented in phases:
 
 - ✅ **Phase 1**: Project scaffolding
 - ✅ **Phase 2**: SQLite + models + repository layer
-- ✅ **Phase 3**: Ingestion + resume manifest + checksum validator
+- ✅ **Phase 3**: Ingestion + resume validation + checksum validator
 - ✅ **Phase 4**: Templating + email composer
 - ✅ **Phase 5**: SMTP sender + dry-run support
 - ✅ **Phase 6**: IMAP reply detector
 - ✅ **Phase 7**: Orchestrator end-to-end
-- ✅ **Phase 8**: Polish for GitHub + LinkedIn
+- ✅ **Phase 8**: Web interface + Docker deployment
 
-## 🐳 Docker Details
+## 🚢 Deployment Guide
 
-### Image Information
+> **Note:** For local development/testing, see the [Quick Start](#-quick-start) section above.
+
+### Docker Image Information
 
 - **Registry**: GitHub Container Registry (GHCR)
 - **Image**: `ghcr.io/neha272/cold-email:latest`
 - **Architecture**: Multi-arch (linux/amd64, linux/arm64)
 - **Base Image**: `python:3.11-slim`
 - **Size**: ~200MB (optimized with multi-stage build)
+- **WSGI Server**: Gunicorn (production-ready, not Flask dev server)
 
-### Building Locally
+### Production Deployment
 
-```bash
-# Build the image
-docker build -t cold-emailer:local .
+#### Option 1: Docker on Linux Server (Recommended)
 
-# Run the container
-docker run -d \
-  --name cold-emailer \
-  -p 5000:5000 \
-  --env-file .env \
-  -v $(pwd)/data:/app/data \
-  -v $(pwd)/logs:/app/logs \
-  -v $(pwd)/config:/app/config:ro \
-  -v $(pwd)/templates:/app/templates:ro \
-  cold-emailer:local
-```
+**Prerequisites:**
+- Linux server (Ubuntu 20.04+ recommended)
+- Docker and Docker Compose installed
+- Domain name (optional, for reverse proxy)
+- SSL certificate (optional, for HTTPS)
+
+**Steps:**
+
+1. **SSH into your server**
+   ```bash
+   ssh user@your-server-ip
+   ```
+
+2. **Install Docker and Docker Compose** (if not installed)
+   ```bash
+   # Install Docker
+   curl -fsSL https://get.docker.com -o get-docker.sh
+   sudo sh get-docker.sh
+   
+   # Install Docker Compose
+   sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+   sudo chmod +x /usr/local/bin/docker-compose
+   ```
+
+3. **Clone the repository**
+   ```bash
+   git clone https://github.com/neha272/Cold-Email.git
+   cd Cold-Email
+   ```
+
+4. **Configure environment variables**
+   ```bash
+   cp .env.example .env
+   nano .env  # Edit with your credentials
+   ```
+
+5. **Create necessary directories**
+   ```bash
+   mkdir -p data logs
+   chmod -R 755 data logs
+   ```
+
+6. **Start the application**
+   ```bash
+   docker compose up -d --build
+   ```
+
+7. **Initialize the database**
+   ```bash
+   docker compose exec cold-emailer cold-emailer init-db
+   ```
+
+8. **Set up reverse proxy with Nginx** (optional, for HTTPS)
+   ```bash
+   # Install Nginx
+   sudo apt update
+   sudo apt install nginx certbot python3-certbot-nginx
+   
+   # Create Nginx configuration
+   sudo nano /etc/nginx/sites-available/cold-emailer
+   ```
+
+   **Nginx configuration:**
+   ```nginx
+   server {
+       listen 80;
+       server_name your-domain.com;
+       
+       location / {
+           proxy_pass http://localhost:5000;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+       }
+   }
+   ```
+
+   ```bash
+   # Enable site
+   sudo ln -s /etc/nginx/sites-available/cold-emailer /etc/nginx/sites-enabled/
+   sudo nginx -t
+   sudo systemctl reload nginx
+   
+   # Set up SSL
+   sudo certbot --nginx -d your-domain.com
+   ```
+
+9. **Set up automatic updates** (optional)
+   ```bash
+   # Create update script
+   nano ~/update-cold-emailer.sh
+   ```
+
+   ```bash
+   #!/bin/bash
+   cd /path/to/Cold-Email
+   git pull
+   docker compose pull
+   docker compose up -d --build
+   docker compose exec cold-emailer cold-emailer init-db  # Only if schema changed
+   ```
+
+   ```bash
+   chmod +x ~/update-cold-emailer.sh
+   ```
+
+#### Option 2: Cloud Platform Deployment
+
+##### DigitalOcean App Platform
+
+1. **Connect your GitHub repository** to DigitalOcean
+2. **Create a new app** and select your repository
+3. **Configure build settings:**
+   - Build command: `docker build -t cold-emailer .`
+   - Run command: `gunicorn --config gunicorn.conf.py cold_emailer.web.app:app`
+4. **Add environment variables** from your `.env` file
+5. **Add persistent storage** for `data/` and `logs/` directories
+6. **Deploy**
+
+##### AWS EC2 / Lightsail
+
+1. **Launch an EC2 instance** (Ubuntu 20.04+)
+2. **Follow "Docker on Linux Server" steps above**
+3. **Configure security groups** to allow port 5000 (or 80/443 if using Nginx)
+4. **Set up Elastic IP** for static IP address
+
+##### Google Cloud Platform (GCP)
+
+1. **Create a Compute Engine VM** (Ubuntu 20.04+)
+2. **Follow "Docker on Linux Server" steps above**
+3. **Configure firewall rules** to allow HTTP/HTTPS traffic
+4. **Set up Cloud Load Balancer** (optional, for high availability)
+
+##### Azure Container Instances
+
+1. **Create Azure Container Registry** (ACR)
+2. **Push Docker image** to ACR:
+   ```bash
+   az acr build --registry your-registry --image cold-email:latest .
+   ```
+3. **Create Container Instance** with environment variables
+4. **Mount Azure File Share** for persistent data storage
+
+### Post-Deployment Checklist
+
+- [ ] Database initialized (`docker compose exec cold-emailer cold-emailer init-db`)
+- [ ] Environment variables configured (`.env` file)
+- [ ] Web interface accessible (test `http://your-server:5000`)
+- [ ] Health check passing (`docker compose ps`)
+- [ ] Logs are being written (`docker compose logs`)
+- [ ] Data directories are persistent (check `data/` and `logs/`)
+- [ ] Email credentials tested (send test email via web interface)
+- [ ] Reverse proxy configured (if using domain name)
+- [ ] SSL certificate installed (if using HTTPS)
+- [ ] Firewall rules configured
+- [ ] Backup strategy in place
 
 ### Docker Troubleshooting
 
@@ -577,12 +718,6 @@ lsof -i :5000
 chmod -R 755 data logs
 ```
 
-**Database initialization:**
-```bash
-# Initialize database inside container
-docker compose exec cold-emailer cold-emailer init-db
-```
-
 **Update to latest image:**
 ```bash
 # Pull latest image
@@ -592,19 +727,114 @@ docker compose pull
 docker compose up -d
 ```
 
-### Environment Variables
+### Monitoring and Maintenance
 
-All configuration is done via environment variables. See `.env.example` for all available options.
+#### Health Checks
 
-**Required for email sending:**
-- `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`
-- `IMAP_HOST`, `IMAP_USER`, `IMAP_PASSWORD`
+```bash
+# Check container status
+docker compose ps
 
-**Optional:**
-- `PORT` - Web interface port (default: 5000)
-- `FLASK_SECRET_KEY` - Secret key for Flask sessions
-- `DAILY_MAX_EMAILS` - Daily email limit (default: 50)
-- `PER_MINUTE_LIMIT` - Rate limit (default: 5)
+# Check logs
+docker compose logs -f cold-emailer
+
+# Check health endpoint (if healthcheck configured)
+curl http://localhost:5000/
+```
+
+#### Backup Strategy
+
+**Backup database and data:**
+```bash
+# Create backup script
+nano ~/backup-cold-emailer.sh
+```
+
+```bash
+#!/bin/bash
+BACKUP_DIR="/path/to/backups"
+DATE=$(date +%Y%m%d_%H%M%S)
+
+# Backup database
+docker compose exec -T cold-emailer sqlite3 /app/data/state.db ".backup '/app/data/backup_$DATE.db'"
+
+# Copy to backup location
+cp -r data/ "$BACKUP_DIR/data_$DATE"
+cp -r logs/ "$BACKUP_DIR/logs_$DATE"
+
+# Keep only last 7 days of backups
+find "$BACKUP_DIR" -type d -mtime +7 -exec rm -rf {} \;
+```
+
+```bash
+chmod +x ~/backup-cold-emailer.sh
+
+# Add to crontab (daily at 2 AM)
+0 2 * * * /path/to/backup-cold-emailer.sh
+```
+
+#### Updating the Application
+
+```bash
+# Pull latest code
+cd /path/to/Cold-Email
+git pull
+
+# Rebuild and restart
+docker compose down
+docker compose up -d --build
+
+# Run database migrations (if schema changed)
+docker compose exec cold-emailer cold-emailer init-db
+```
+
+#### Performance Tuning
+
+**Adjust Gunicorn workers** based on server resources:
+```bash
+# In .env file
+GUNICORN_WORKERS=8  # For 4-core server
+```
+
+**Monitor resource usage:**
+```bash
+# Container stats
+docker stats cold-emailer
+
+# System resources
+htop
+```
+
+### Troubleshooting Production Issues
+
+**Container won't start:**
+```bash
+# Check logs
+docker compose logs cold-emailer
+
+# Check environment variables
+docker compose config
+
+# Rebuild from scratch
+docker compose down
+docker compose build --no-cache
+docker compose up -d
+```
+
+**High memory usage:**
+- Reduce `GUNICORN_WORKERS`
+- Check for memory leaks in logs
+- Restart container periodically
+
+**Database locked errors:**
+- Ensure only one instance is running
+- Check for long-running queries
+- Restart container if needed
+
+**Email sending failures:**
+- Verify SMTP credentials in `.env`
+- Check email provider rate limits
+- Review logs for specific error messages
 
 ## 🔒 Security Notes
 

@@ -57,6 +57,7 @@ WORKDIR /app
 # Copy application code (package already installed in venv from builder stage)
 COPY --chown=appuser:appuser src/ /app/src/
 COPY --chown=appuser:appuser pyproject.toml /app/
+COPY --chown=appuser:appuser gunicorn.conf.py /app/
 
 # Make scripts executable
 RUN chmod +x /app/.venv/bin/*
@@ -79,7 +80,8 @@ USER appuser
 # Expose web interface port
 EXPOSE 5000
 
-# Default command: run web interface
+# Default command: run web interface with Gunicorn (production-ready)
 # Override with docker run or docker-compose to use CLI commands
 # Example: docker run ... cold-emailer cold-emailer init-db
-CMD ["python", "-m", "cold_emailer.web.app"]
+# Use Flask dev server for development: python -m cold_emailer.web.app
+CMD ["gunicorn", "--config", "gunicorn.conf.py", "cold_emailer.web.app:app"]

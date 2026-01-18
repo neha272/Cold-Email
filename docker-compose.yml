@@ -14,6 +14,10 @@ services:
       - FLASK_ENV=${FLASK_ENV:-production}
       - PORT=${PORT:-5000}
       
+      # Gunicorn (production WSGI server)
+      - GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}
+      - GUNICORN_LOG_LEVEL=${GUNICORN_LOG_LEVEL:-info}
+      
       # SMTP Configuration
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_PORT=${SMTP_PORT:-587}

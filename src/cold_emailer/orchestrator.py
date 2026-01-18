@@ -487,8 +487,14 @@ class Orchestrator:
 
                 # Send email
                 if self.smtp_sender and resume_path:
-                    # Use custom resume filename
-                    resume_filename = "Resume-Neha_Sutariya.pdf"
+                    # Use resume filename from prospect data or default to resume_id
+                    display_name = prospect.get("resume_display_name") or f"{prospect['resume_id']}"
+                    # Format as "Resume-Name.pdf" replacing spaces with hyphens
+                    if display_name and not display_name.endswith('.pdf'):
+                        resume_filename = f"Resume-{display_name.replace(' ', '_')}.pdf"
+                    else:
+                        resume_filename = display_name
+                    
                     success, sent_message_id, attachment_sha256, error = (
                         self.smtp_sender.send_with_attachment(
                             msg=msg,

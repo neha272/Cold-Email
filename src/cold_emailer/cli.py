@@ -492,7 +492,5 @@ def web() -> None:
         logger.error("Failed to start web interface", error=str(e))
         typer.echo(f"✗ Error: {e}", err=True)
         raise typer.Exit(1)
-
-
 if __name__ == "__main__":
     app()

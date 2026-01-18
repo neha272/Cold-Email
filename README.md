@@ -196,143 +196,62 @@ poetry run cold-emailer status
 ## 📁 Project Structure
 
 ```
-cold_emailer/
-├── config/
-│   ├── settings.yaml        # Main configuration
-│   └── sequences.yaml       # Email sequences
-├── data/
-│   ├── prospects.xlsx       # Input file
-│   ├── resumes/             # PDF resumes
-│   └── state.db             # SQLite database
-├── templates/
-│   ├── initial.md           # Email templates
-│   ├── followup_1.md
-│   └── followup_2.md
-├── src/cold_emailer/
-│   ├── cli.py               # CLI interface
-│   ├── orchestrator.py      # Main logic
-│   ├── composer.py          # Email composition
-│   ├── mailer/
-│   │   ├── smtp_sender.py
-│   │   └── imap_reply_detector.py
-│   ├── state_store/         # Database layer
-│   └── web/                 # Flask web app
-└── tests/
+├── config/           # Configuration files (settings.yaml, sequences.yaml)
+├── data/             # Data directory (prospects.xlsx, resumes/, state.db)
+├── templates/        # Email templates (Initial.md, Followup 1.md, Followup 2.md)
+├── src/cold_emailer/ # Source code (CLI, web app, orchestrator, mailer)
+└── tests/            # Test suite
 ```
 
 ## 🚢 Deployment
 
-### Production Deployment
-
-**Using prebuilt image:**
+**Using Docker (recommended):**
 ```bash
+# Pull prebuilt image
 docker pull ghcr.io/neha272/cold-email:latest
 
-docker run -d \
-  --name cold-emailer \
-  -p 5000:5000 \
+# Run with environment file
+docker run -d --name cold-emailer -p 5000:5000 \
   -v $(pwd)/data:/app/data \
-  -v $(pwd)/logs:/app/logs \
   -v $(pwd)/config:/app/config:ro \
-  -v $(pwd)/templates:/app/templates:ro \
   --env-file .env \
   ghcr.io/neha272/cold-email:latest
 ```
 
-**With reverse proxy (Nginx):**
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-    
-    location / {
-        proxy_pass http://localhost:5000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-```
-
-### Monitoring
-
+**Monitoring & Backup:**
 ```bash
 # View logs
-docker compose logs -f cold-emailer
+docker compose logs -f
 
-# Check status
-docker compose ps
-
-# Container stats
-docker stats cold-emailer
-```
-
-### Backup
-
-```bash
 # Backup database
-docker compose exec -T cold-emailer sqlite3 /app/data/state.db ".backup '/app/data/backup.db'"
-
-# Backup data directory
 tar -czf backup_$(date +%Y%m%d).tar.gz data/
 ```
 
 ## 🧪 Development
 
 ```bash
-# Format code
-poetry run black src tests
+# Run all checks and tests
+make all
 
-# Lint
-poetry run ruff check src tests
-
-# Type check
-poetry run mypy src
-
-# Run tests
-poetry run pytest
-
-# Run tests with coverage
-poetry run pytest --cov=cold_emailer --cov-report=html
+# Individual commands
+make format    # Format code
+make lint      # Run linters
+make test      # Run tests
 ```
 
-## 🔒 Security Best Practices
+## 🔒 Security & Best Practices
 
-- ✅ Use app-specific passwords (never main account password)
-- ✅ Never commit `.env` file (already in `.gitignore`)
-- ✅ Always test with `--dry-run` first
-- ✅ Review email templates before sending
-- ✅ Set appropriate throttling limits
-- ✅ Keep dependencies updated
-- ✅ Secure database file permissions
-- ✅ Comply with CAN-SPAM Act and GDPR
+- Use app-specific passwords (never main account password)
+- Always test with `--dry-run` before live campaigns
+- Set appropriate throttling limits for your email provider
+- Comply with email regulations (CAN-SPAM, GDPR)
+- Resume filename must match `resume_id` in prospects file (without `.pdf`)
 
-## ⚠️ Important Notes
-
-1. **Email Provider Limits:**
-   - Gmail: 500 emails/day (regular), 2000/day (Workspace)
-   - Most providers: ~10 emails/minute
-   
-2. **Compliance:** Ensure compliance with email regulations (CAN-SPAM, GDPR, etc.)
-
-3. **Testing:** Always use `--dry-run` before live campaigns
-
-4. **Resume Files:** The `resume_id` in prospects file must match the PDF filename (without `.pdf`)
+**Email Provider Limits:** Gmail: 500/day (regular), 2000/day (Workspace) | Most: ~10/minute
 
 ## 📄 License
 
-MIT License
-
-## 🤝 Contributing
-
-Contributions welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new features
-4. Submit a pull request
-
-## 📧 Support
-
-For issues or questions, open an issue on GitHub.
+MIT License - See [LICENSE](LICENSE) for details
 
 ---
 

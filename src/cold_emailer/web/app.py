@@ -14,11 +14,20 @@ except ImportError:
         ZoneInfo = None
 
 import yaml
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_file
 from werkzeug.utils import secure_filename
+from werkzeug.security import check_password_hash, generate_password_hash
 from sqlalchemy.exc import OperationalError
+from sqlalchemy import text
+from dotenv import load_dotenv
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_httpauth import HTTPBasicAuth
 
-from cold_emailer.config import EnvSettings, load_config, load_sequences
+# Load environment variables from .env file
+load_dotenv()
+
+from cold_emailer.config import EnvSettings, load_config, load_sequences, validate_env_on_startup
 from cold_emailer.orchestrator import Orchestrator
 from cold_emailer.state_store.db import create_database_engine, get_session, init_database
 from cold_emailer.state_store.models import ProspectStatus
@@ -33,9 +42,51 @@ CONFIG_DIR = WORKSPACE_ROOT / "config"
 DATA_DIR = WORKSPACE_ROOT / "data"
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-secret-key-change-in-production")
+
+# Security: Fail if secret key not set in production
+secret_key = os.environ.get("FLASK_SECRET_KEY")
+if not secret_key or secret_key == "dev-secret-key-change-in-production":
+    if os.environ.get("FLASK_ENV") == "production":
+        raise ValueError("FLASK_SECRET_KEY must be set in production!")
+    secret_key = "dev-secret-key-change-in-production"
+app.secret_key = secret_key
+
 app.config["UPLOAD_FOLDER"] = DATA_DIR
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
+
+# Initialize rate limiter
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+)
+
+# Initialize HTTP Basic Auth (optional - only if credentials are set)
+auth = HTTPBasicAuth()
+AUTH_ENABLED = bool(os.environ.get("WEB_AUTH_USERNAME") and os.environ.get("WEB_AUTH_PASSWORD"))
+
+@auth.verify_password
+def verify_password(username: str, password: str) -> bool:
+    """Verify username and password for basic auth."""
+    if not AUTH_ENABLED:
+        return True  # Auth disabled, allow all
+    
+    expected_username = os.environ.get("WEB_AUTH_USERNAME", "")
+    expected_password_hash = os.environ.get("WEB_AUTH_PASSWORD_HASH", "")
+    expected_password_plain = os.environ.get("WEB_AUTH_PASSWORD", "")
+    
+    # Check username
+    if username != expected_username:
+        return False
+    
+    # Check password (hashed or plain)
+    if expected_password_hash:
+        return check_password_hash(expected_password_hash, password)
+    elif expected_password_plain:
+        return password == expected_password_plain
+    
+    return False
 
 # Load configuration
 settings = load_config(CONFIG_DIR / "settings.yaml")
@@ -117,7 +168,31 @@ def calculate_next_action_time(sequence_id: str) -> datetime | None:
         return None
 
 
+@app.route("/health")
+def health():
+    """Health check endpoint for Docker/k8s."""
+    try:
+        # Check database connectivity
+        with get_session(engine) as session:
+            session.execute(text("SELECT 1"))
+        
+        return jsonify({
+            "status": "healthy",
+            "service": "cold-emailer",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }), 200
+    except Exception as e:
+        logger.error("Health check failed", error=str(e))
+        return jsonify({
+            "status": "unhealthy",
+            "service": "cold-emailer",
+            "error": str(e),
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }), 503
+
+
 @app.route("/")
+@auth.login_required
 def index():
     """Dashboard homepage."""
     try:
@@ -171,6 +246,7 @@ def index():
 
 
 @app.route("/prospects")
+@auth.login_required
 def prospects_list():
     """List all prospects with filtering."""
     status_filter = request.args.get("status")
@@ -203,6 +279,7 @@ def prospects_list():
 
 
 @app.route("/prospects/add", methods=["GET", "POST"])
+@auth.login_required
 def add_prospect():
     """Add a new prospect."""
     # Get available resumes
@@ -221,6 +298,7 @@ def add_prospect():
                     "full_name": request.form.get("full_name", "").strip(),
                     "company": request.form.get("company", "").strip(),
                     "resume_id": request.form.get("resume_id", "").strip(),
+                    "resume_display_name": request.form.get("resume_display_name", "Neha Sutariya").strip() or "Neha Sutariya",
                     "role_title": request.form.get("role_title", "").strip() or None,
                     "sequence_id": request.form.get("sequence_id", "default").strip() or "default",
                     "timezone": request.form.get("timezone", "").strip() or None,
@@ -281,6 +359,7 @@ def add_prospect():
 
 
 @app.route("/prospects/<prospect_id>/edit", methods=["GET", "POST"])
+@auth.login_required
 def edit_prospect(prospect_id):
     """Edit an existing prospect."""
     # Get available resumes
@@ -304,6 +383,7 @@ def edit_prospect(prospect_id):
                     "full_name": request.form.get("full_name", "").strip(),
                     "company": request.form.get("company", "").strip(),
                     "resume_id": request.form.get("resume_id", "").strip(),
+                    "resume_display_name": request.form.get("resume_display_name", "Neha Sutariya").strip() or "Neha Sutariya",
                     "role_title": request.form.get("role_title", "").strip() or None,
                     "sequence_id": request.form.get("sequence_id", "default").strip() or "default",
                     "timezone": request.form.get("timezone", "").strip() or None,
@@ -359,6 +439,7 @@ def edit_prospect(prospect_id):
 
 
 @app.route("/prospects/import", methods=["GET", "POST"])
+@auth.login_required
 def import_prospects():
     """Import prospects from Excel file."""
     if request.method == "POST":
@@ -411,6 +492,7 @@ def import_prospects():
 
 
 @app.route("/prospects/<prospect_id>")
+@auth.login_required
 def prospect_detail(prospect_id):
     """View prospect details and history."""
     with get_session(engine) as session:
@@ -432,6 +514,8 @@ def prospect_detail(prospect_id):
 
 
 @app.route("/campaign/run", methods=["POST"])
+@limiter.limit("10 per hour")  # Strict limit on campaign runs
+@auth.login_required
 def run_campaign():
     """Run email campaign."""
     dry_run = request.form.get("dry_run") == "true"
@@ -460,6 +544,7 @@ def run_campaign():
 
 
 @app.route("/campaign/check-replies", methods=["POST"])
+@auth.login_required
 def check_replies():
     """Manually check for replies."""
     try:
@@ -481,6 +566,7 @@ def check_replies():
 
 
 @app.route("/stats")
+@auth.login_required
 def stats():
     """Statistics and visualizations."""
     with get_session(engine) as session:
@@ -523,6 +609,7 @@ def stats():
 
 
 @app.route("/settings")
+@auth.login_required
 def settings_page():
     """View and edit settings."""
     return render_template(
@@ -534,6 +621,7 @@ def settings_page():
 
 
 @app.route("/resumes")
+@auth.login_required
 def resumes_page():
     """View and manage resume files."""
     from cold_emailer.attachments import list_available_resumes
@@ -552,6 +640,7 @@ def resumes_page():
 
 
 @app.route("/resumes/upload", methods=["POST"])
+@auth.login_required
 def upload_resume():
     """Upload a new resume file."""
     try:
@@ -602,6 +691,7 @@ def upload_resume():
 
 
 @app.route("/resumes/<resume_id>/delete", methods=["POST"])
+@auth.login_required
 def delete_resume(resume_id):
     """Delete a resume file."""
     try:
@@ -642,6 +732,7 @@ def delete_resume(resume_id):
 
 
 @app.route("/sequences")
+@auth.login_required
 def sequences_list():
     """List all email sequences."""
     return render_template(
@@ -651,6 +742,7 @@ def sequences_list():
 
 
 @app.route("/sequences/<sequence_id>")
+@auth.login_required
 def sequence_detail(sequence_id):
     """View and edit a specific sequence."""
     if sequence_id not in sequences_dict:
@@ -667,6 +759,27 @@ def sequence_detail(sequence_id):
         for template_file in templates_dir.glob("*.md"):
             available_templates.append(template_file.stem)
     
+    # Load template content for each step
+    steps_with_content = []
+    for step in sequence.get("steps", []):
+        step_data = step.copy()
+        template_name = step.get("template", "")
+        template_path = templates_dir / f"{template_name}.md"
+        
+        if template_path.exists():
+            try:
+                with open(template_path, "r", encoding="utf-8") as f:
+                    step_data["template_content"] = f.read()
+            except Exception as e:
+                logger.error(f"Failed to load template {template_name}", error=str(e))
+                step_data["template_content"] = f"Error loading template: {str(e)}"
+        else:
+            step_data["template_content"] = f"Template file not found: {template_name}.md"
+        
+        steps_with_content.append(step_data)
+    
+    sequence["steps_with_content"] = steps_with_content
+    
     return render_template(
         "sequence_detail.html",
         sequence=sequence,
@@ -676,6 +789,7 @@ def sequence_detail(sequence_id):
 
 
 @app.route("/sequences/add", methods=["GET", "POST"])
+@auth.login_required
 def add_sequence():
     """Add a new email sequence."""
     templates_dir = WORKSPACE_ROOT / settings.paths.templates_dir
@@ -756,6 +870,7 @@ def add_sequence():
 
 
 @app.route("/sequences/<sequence_id>/edit", methods=["GET", "POST"])
+@auth.login_required
 def edit_sequence(sequence_id):
     """Edit an existing email sequence."""
     if sequence_id not in sequences_dict:
@@ -786,6 +901,7 @@ def edit_sequence(sequence_id):
                 template = request.form.get(f"step_{i}_template", "")
                 wait_days = request.form.get(f"step_{i}_wait_days", "0")
                 subject = request.form.get(f"step_{i}_subject", "")
+                template_content = request.form.get(f"step_{i}_content", "")
                 
                 if step_num and template:
                     try:
@@ -795,6 +911,17 @@ def edit_sequence(sequence_id):
                             "wait_days": int(wait_days) if wait_days else 0,
                             "subject": subject,
                         })
+                        
+                        # Save template content to file
+                        if template_content:
+                            template_path = templates_dir / f"{template}.md"
+                            try:
+                                with open(template_path, "w", encoding="utf-8") as f:
+                                    f.write(template_content)
+                                logger.info(f"Updated template file: {template}.md")
+                            except Exception as e:
+                                logger.error(f"Failed to save template {template}", error=str(e))
+                        
                     except ValueError:
                         continue
             
@@ -832,6 +959,28 @@ def edit_sequence(sequence_id):
     
     sequence = sequences_dict[sequence_id]
     sequence["id"] = sequence_id
+    
+    # Load template content for each step
+    steps_with_content = []
+    for step in sequence.get("steps", []):
+        step_data = step.copy()
+        template_name = step.get("template", "")
+        template_path = templates_dir / f"{template_name}.md"
+        
+        if template_path.exists():
+            try:
+                with open(template_path, "r", encoding="utf-8") as f:
+                    step_data["template_content"] = f.read()
+            except Exception as e:
+                logger.error(f"Failed to load template {template_name}", error=str(e))
+                step_data["template_content"] = ""
+        else:
+            step_data["template_content"] = ""
+        
+        steps_with_content.append(step_data)
+    
+    sequence["steps_with_content"] = steps_with_content
+    
     return render_template(
         "edit_sequence.html",
         sequence=sequence,
@@ -874,8 +1023,6 @@ def format_datetime(value):
     local_time = value.astimezone(chicago_tz)
     
     return local_time.strftime("%Y-%m-%d %H:%M:%S %Z")
-
-
 @app.template_filter("timesince")
 def time_since(value):
     """Human-readable time since in Chicago timezone."""
@@ -925,6 +1072,23 @@ def time_since(value):
 
 def main():
     """Run the Flask development server."""
+    # Validate environment variables on startup
+    is_valid, errors = validate_env_on_startup(skip_email_check=False)
+    if not is_valid:
+        print("\n" + "="*60)
+        print("❌ Environment Validation Failed")
+        print("="*60)
+        print("\nMissing required environment variables:")
+        for error in errors:
+            print(f"  • {error}")
+        print("\nPlease set these variables in your .env file or environment.")
+        print("See .env.example for reference.")
+        print("="*60 + "\n")
+        # Don't exit in production Docker - allow web UI access
+        if os.environ.get("DOCKER_CONTAINER") != "true":
+            import sys
+            sys.exit(1)
+    
     # Get port from environment or default to 5000
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_ENV", "production") == "development"
@@ -935,6 +1099,10 @@ def main():
     print(f"\n📍 Server running at: http://0.0.0.0:{port}")
     print(f"📁 Workspace: {WORKSPACE_ROOT}")
     print(f"🗄️  Database: {settings.database.path}")
+    if is_valid:
+        print("✅ Environment validation passed")
+    else:
+        print("⚠️  Environment validation failed - email features may not work")
     print("\n💡 Press Ctrl+C to stop the server\n")
     
     app.run(debug=debug, host="0.0.0.0", port=port)

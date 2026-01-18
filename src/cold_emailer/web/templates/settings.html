@@ -23,22 +23,22 @@
             </div>
             <div class="card-body">
                 <dl class="row mb-0">
-                    <dt class="col-sm-5">From Name:</dt>
-                    <dd class="col-sm-7">{{ settings.email.from_name }}</dd>
+                    <dt class="col-sm-5" style="color: rgba(235, 235, 245, 0.6); font-weight: 600;">From Name:</dt>
+                    <dd class="col-sm-7" style="color: var(--text-primary); font-weight: 500;">{{ settings.email.from_name }}</dd>
                     
-                    <dt class="col-sm-5">From Email:</dt>
-                    <dd class="col-sm-7">{{ settings.email.from_email }}</dd>
+                    <dt class="col-sm-5" style="color: rgba(235, 235, 245, 0.6); font-weight: 600;">From Email:</dt>
+                    <dd class="col-sm-7" style="color: var(--text-primary); font-weight: 500;">{{ settings.email.from_email }}</dd>
                     
-                    <dt class="col-sm-5">Reply To:</dt>
-                    <dd class="col-sm-7">{{ settings.email.reply_to or 'Same as from' }}</dd>
+                    <dt class="col-sm-5" style="color: rgba(235, 235, 245, 0.6); font-weight: 600;">Reply To:</dt>
+                    <dd class="col-sm-7" style="color: var(--text-primary); font-weight: 500;">{{ settings.email.reply_to or 'Same as from' }}</dd>
                     
-                    <dt class="col-sm-5">SMTP Host:</dt>
-                    <dd class="col-sm-7">{{ env_settings.smtp_host }}</dd>
+                    <dt class="col-sm-5" style="color: rgba(235, 235, 245, 0.6); font-weight: 600;">SMTP Host:</dt>
+                    <dd class="col-sm-7" style="color: var(--text-primary); font-weight: 500;">{{ env_settings.smtp_host }}</dd>
                     
-                    <dt class="col-sm-5">SMTP Port:</dt>
-                    <dd class="col-sm-7">{{ env_settings.smtp_port }}</dd>
+                    <dt class="col-sm-5" style="color: rgba(235, 235, 245, 0.6); font-weight: 600;">SMTP Port:</dt>
+                    <dd class="col-sm-7" style="color: var(--text-primary); font-weight: 500;">{{ env_settings.smtp_port }}</dd>
                     
-                    <dt class="col-sm-5">SMTP TLS:</dt>
+                    <dt class="col-sm-5" style="color: rgba(235, 235, 245, 0.6); font-weight: 600;">SMTP TLS:</dt>
                     <dd class="col-sm-7">
                         {% if env_settings.smtp_use_tls %}
                             <span class="badge bg-success">Enabled</span>
@@ -60,60 +60,18 @@
             </div>
             <div class="card-body">
                 <dl class="row mb-0">
-                    <dt class="col-sm-6">Daily Max:</dt>
-                    <dd class="col-sm-6">{{ settings.throttling.daily_max }} emails</dd>
+                    <dt class="col-sm-6" style="color: rgba(235, 235, 245, 0.6); font-weight: 600;">Daily Max:</dt>
+                    <dd class="col-sm-6" style="color: var(--text-primary); font-weight: 500;">{{ settings.throttling.daily_max }} emails</dd>
                     
-                    <dt class="col-sm-6">Hourly Max:</dt>
-                    <dd class="col-sm-6">{{ settings.throttling.hourly_max }} emails</dd>
+                    <dt class="col-sm-6" style="color: rgba(235, 235, 245, 0.6); font-weight: 600;">Hourly Max:</dt>
+                    <dd class="col-sm-6" style="color: var(--text-primary); font-weight: 500;">{{ settings.throttling.hourly_max }} emails</dd>
                     
-                    <dt class="col-sm-6">Delay Between:</dt>
-                    <dd class="col-sm-6">{{ settings.throttling.delay_seconds }} seconds</dd>
+                    <dt class="col-sm-6" style="color: rgba(235, 235, 245, 0.6); font-weight: 600;">Delay Between:</dt>
+                    <dd class="col-sm-6" style="color: var(--text-primary); font-weight: 500;">{{ settings.throttling.delay_seconds }} seconds</dd>
                     
-                    <dt class="col-sm-6">Send Window:</dt>
-                    <dd class="col-sm-6">{{ settings.throttling.send_window_start }} - {{ settings.throttling.send_window_end }}</dd>
+                    <dt class="col-sm-6" style="color: rgba(235, 235, 245, 0.6); font-weight: 600;">Send Window:</dt>
+                    <dd class="col-sm-6" style="color: var(--text-primary); font-weight: 500;">{{ settings.throttling.send_window_start }} - {{ settings.throttling.send_window_end }}</dd>
                 </dl>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Sequence Configuration -->
-<div class="row">
-    <div class="col-md-12">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="bi bi-list-ol"></i> Email Sequences
-                </h5>
-            </div>
-            <div class="card-body">
-                {% for sequence_id, sequence in sequences.items() %}
-                    <div class="mb-4">
-                        <h6 class="text-primary">{{ sequence.name }}</h6>
-                        <p class="text-muted">{{ sequence.description }}</p>
-                        
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Step</th>
-                                    <th>Template</th>
-                                    <th>Subject</th>
-                                    <th>Wait Days</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for step in sequence.steps %}
-                                    <tr>
-                                        <td><span class="badge bg-secondary">{{ step.step }}</span></td>
-                                        <td>{{ step.template }}</td>
-                                        <td>{{ step.subject }}</td>
-                                        <td>{{ step.wait_days }} days</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% endfor %}
             </div>
         </div>
     </div>
@@ -130,10 +88,10 @@
             </div>
             <div class="card-body">
                 <dl class="row mb-0">
-                    <dt class="col-sm-4">Path:</dt>
-                    <dd class="col-sm-8"><code>{{ settings.database.path }}</code></dd>
+                    <dt class="col-sm-4" style="color: rgba(235, 235, 245, 0.6); font-weight: 600;">Path:</dt>
+                    <dd class="col-sm-8"><code style="color: var(--primary-light); background: rgba(10, 132, 255, 0.2); padding: 0.3rem 0.6rem; border-radius: 6px;">{{ settings.database.path }}</code></dd>
                     
-                    <dt class="col-sm-4">Echo SQL:</dt>
+                    <dt class="col-sm-4" style="color: rgba(235, 235, 245, 0.6); font-weight: 600;">Echo SQL:</dt>
                     <dd class="col-sm-8">
                         {% if settings.database.echo %}
                             <span class="badge bg-warning">Enabled (Debug)</span>
@@ -155,14 +113,14 @@
             </div>
             <div class="card-body">
                 <dl class="row mb-0">
-                    <dt class="col-sm-4">Templates:</dt>
-                    <dd class="col-sm-8"><code>{{ settings.paths.templates_dir }}</code></dd>
+                    <dt class="col-sm-4" style="color: rgba(235, 235, 245, 0.6); font-weight: 600;">Templates:</dt>
+                    <dd class="col-sm-8"><code style="color: var(--primary-light); background: rgba(10, 132, 255, 0.2); padding: 0.3rem 0.6rem; border-radius: 6px;">{{ settings.paths.templates_dir }}</code></dd>
                     
-                    <dt class="col-sm-4">Resumes:</dt>
-                    <dd class="col-sm-8"><code>{{ settings.paths.resumes_dir }}</code></dd>
+                    <dt class="col-sm-4" style="color: rgba(235, 235, 245, 0.6); font-weight: 600;">Resumes:</dt>
+                    <dd class="col-sm-8"><code style="color: var(--primary-light); background: rgba(10, 132, 255, 0.2); padding: 0.3rem 0.6rem; border-radius: 6px;">{{ settings.paths.resumes_dir }}</code></dd>
                     
-                    <dt class="col-sm-4">Logs:</dt>
-                    <dd class="col-sm-8"><code>{{ settings.paths.logs_dir }}</code></dd>
+                    <dt class="col-sm-4" style="color: rgba(235, 235, 245, 0.6); font-weight: 600;">Logs:</dt>
+                    <dd class="col-sm-8"><code style="color: var(--primary-light); background: rgba(10, 132, 255, 0.2); padding: 0.3rem 0.6rem; border-radius: 6px;">{{ settings.paths.logs_dir }}</code></dd>
                 </dl>
             </div>
         </div>

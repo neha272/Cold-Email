@@ -203,3 +203,44 @@ def load_sequences(sequences_path: str = "config/sequences.yaml") -> dict[str, A
         # Try with different encoding if UTF-8 fails
         with open(seq_file, "r", encoding="utf-8-sig") as f:
             return yaml.safe_load(f)
+
+
+def validate_env_on_startup(skip_email_check: bool = False) -> tuple[bool, list[str]]:
+    """
+    Validate required environment variables on startup.
+    
+    Args:
+        skip_email_check: Skip SMTP/IMAP validation (useful for web-only mode)
+    
+    Returns:
+        Tuple of (is_valid, list of error messages)
+    """
+    errors = []
+    
+    try:
+        env_settings = EnvSettings()
+        
+        # Check SMTP settings (required for sending emails)
+        if not skip_email_check:
+            if not env_settings.smtp_host:
+                errors.append("SMTP_HOST is not set")
+            if not env_settings.smtp_user:
+                errors.append("SMTP_USER is not set")
+            if not env_settings.smtp_password:
+                errors.append("SMTP_PASSWORD is not set")
+            if not env_settings.smtp_from_email:
+                errors.append("SMTP_FROM_EMAIL is not set")
+            
+            # Check IMAP settings (required for reply detection)
+            if not env_settings.imap_host:
+                errors.append("IMAP_HOST is not set")
+            if not env_settings.imap_user:
+                errors.append("IMAP_USER is not set")
+            if not env_settings.imap_password:
+                errors.append("IMAP_PASSWORD is not set")
+        
+        return len(errors) == 0, errors
+        
+    except Exception as e:
+        errors.append(f"Failed to load environment settings: {str(e)}")
+        return False, errors

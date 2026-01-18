@@ -75,7 +75,7 @@
 <script>
     let stepIndex = 0;
     const availableTemplates = {{ available_templates|tojson }};
-    const existingSteps = {{ sequence.steps|tojson }};
+    const existingSteps = {{ sequence.steps_with_content|tojson }};
     
     function addStep(stepData = null) {
         const container = document.getElementById('stepsContainer');
@@ -86,16 +86,24 @@
         const template = stepData ? stepData.template : '';
         const waitDays = stepData ? stepData.wait_days : 0;
         const subject = stepData ? stepData.subject : '';
+        const content = stepData ? stepData.template_content || '' : '';
+        
+        // Escape HTML in content for display in textarea
+        const escapeHtml = (text) => {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        };
         
         stepDiv.innerHTML = `
-            <div class="card-body">
+            <div class="card-body" style="background: rgba(28, 28, 30, 1);">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="mb-0">Step ${stepNum}</h6>
+                    <h6 class="mb-0" style="color: rgba(235, 235, 245, 0.9);">Step ${stepNum}</h6>
                     <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeStep(this)">
                         <i class="bi bi-trash"></i> Remove
                     </button>
                 </div>
-                <div class="row">
+                <div class="row mb-3">
                     <div class="col-md-2">
                         <label class="form-label">Step Number</label>
                         <input type="number" class="form-control" name="step_${stepIndex}_num" 
@@ -118,7 +126,18 @@
                     <div class="col-md-5">
                         <label class="form-label">Subject Line</label>
                         <input type="text" class="form-control" name="step_${stepIndex}_subject" 
-                               value="${subject}" placeholder="e.g., Application for {{ role_title }} at {{ company }}" required>
+                               value="${escapeHtml(subject)}" placeholder="e.g., Application for {{ role_title }} at {{ company }}" required>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <label class="form-label">Email Body (Markdown)</label>
+                        <textarea class="form-control" name="step_${stepIndex}_content" rows="10" 
+                                  style="font-family: 'SF Mono', Monaco, 'Courier New', monospace; font-size: 0.9rem; background: rgba(44, 44, 46, 1); color: rgba(235, 235, 245, 0.9); border: 1px solid rgba(99, 99, 102, 0.3);" 
+                                  placeholder="Enter email body in Markdown format...">${escapeHtml(content)}</textarea>
+                        <div class="form-text">
+                            <i class="bi bi-info-circle"></i> Available variables: {{ '{{' }} full_name {{ '}}' }}, {{ '{{' }} company {{ '}}' }}, {{ '{{' }} role_title {{ '}}' }}, {{ '{{' }} sender.from_name {{ '}}' }}
+                        </div>
                     </div>
                 </div>
             </div>

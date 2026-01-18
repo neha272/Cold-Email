@@ -114,6 +114,7 @@ def parse_csv(file_path: Path) -> list[dict[str, Any]]:
                     "full_name": full_name,
                     "company": company,
                     "resume_id": resume_id,
+                    "resume_display_name": row.get("resume_display_name", "Neha Sutariya").strip() or "Neha Sutariya",
                     "sequence_id": row.get("sequence_id", "default").strip() or "default",
                     "role_title": row.get("role_title", "").strip() or None,
                     "timezone": row.get("timezone", "").strip() or None,

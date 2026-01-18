@@ -56,28 +56,28 @@
 <div class="card">
     <div class="card-body">
         {% if prospects %}
-            <div class="table-responsive">
-                <table class="table table-hover">
+            <div class="table-responsive" style="background: rgba(28, 28, 30, 1);">
+                <table class="table table-hover" style="background: rgba(28, 28, 30, 1);">
                     <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Company</th>
-                            <th>Status</th>
-                            <th>Step</th>
-                            <th>Last Sent</th>
-                            <th>Next Action</th>
-                            <th>Actions</th>
+                        <tr style="background: rgba(44, 44, 46, 1); border-bottom: 1px solid rgba(99, 99, 102, 0.3);">
+                            <th style="color: rgba(235, 235, 245, 0.6); font-weight: 600; text-transform: uppercase; font-size: 0.75rem; padding: 1rem;">Name</th>
+                            <th style="color: rgba(235, 235, 245, 0.6); font-weight: 600; text-transform: uppercase; font-size: 0.75rem; padding: 1rem;">Email</th>
+                            <th style="color: rgba(235, 235, 245, 0.6); font-weight: 600; text-transform: uppercase; font-size: 0.75rem; padding: 1rem;">Company</th>
+                            <th style="color: rgba(235, 235, 245, 0.6); font-weight: 600; text-transform: uppercase; font-size: 0.75rem; padding: 1rem;">Status</th>
+                            <th style="color: rgba(235, 235, 245, 0.6); font-weight: 600; text-transform: uppercase; font-size: 0.75rem; padding: 1rem;">Step</th>
+                            <th style="color: rgba(235, 235, 245, 0.6); font-weight: 600; text-transform: uppercase; font-size: 0.75rem; padding: 1rem;">Last Sent</th>
+                            <th style="color: rgba(235, 235, 245, 0.6); font-weight: 600; text-transform: uppercase; font-size: 0.75rem; padding: 1rem;">Next Action</th>
+                            <th style="color: rgba(235, 235, 245, 0.6); font-weight: 600; text-transform: uppercase; font-size: 0.75rem; padding: 1rem;">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody style="background: rgba(28, 28, 30, 1);">
                         {% for prospect in prospects %}
-                            <tr>
-                                <td>
-                                    <strong>{{ prospect.full_name }}</strong>
+                            <tr style="background: rgba(28, 28, 30, 1); border-bottom: 1px solid rgba(99, 99, 102, 0.2);">
+                                <td style="padding: 1rem; vertical-align: middle;">
+                                    <strong style="color: rgba(235, 235, 245, 0.9);">{{ prospect.full_name }}</strong>
                                 </td>
-                                <td>{{ prospect.email }}</td>
-                                <td>{{ prospect.company }}</td>
+                                <td style="color: rgba(235, 235, 245, 0.9); padding: 1rem; vertical-align: middle;">{{ prospect.email }}</td>
+                                <td style="color: rgba(235, 235, 245, 0.9); padding: 1rem; vertical-align: middle;">{{ prospect.company }}</td>
                                 <td>
                                     {% if prospect.status == 'REPLIED' %}
                                         <span class="badge bg-success badge-status">
@@ -101,16 +101,16 @@
                                         </span>
                                     {% endif %}
                                 </td>
-                                <td>{{ prospect.followup_step }}</td>
-                                <td>{{ prospect.last_sent_at|datetime if prospect.last_sent_at else 'Never' }}</td>
-                                <td>
+                                <td style="color: rgba(235, 235, 245, 0.9); padding: 1rem; vertical-align: middle;">{{ prospect.followup_step }}</td>
+                                <td style="color: rgba(235, 235, 245, 0.9); padding: 1rem; vertical-align: middle;">{{ prospect.last_sent_at|datetime if prospect.last_sent_at else 'Never' }}</td>
+                                <td style="padding: 1rem; vertical-align: middle;">
                                     {% if prospect.next_action_at %}
-                                        {{ prospect.next_action_at|datetime }}
+                                        <span style="color: rgba(235, 235, 245, 0.9);">{{ prospect.next_action_at|datetime }}</span>
                                     {% else %}
-                                        <span class="text-muted">N/A</span>
+                                        <span style="color: rgba(235, 235, 245, 0.5);">N/A</span>
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td style="padding: 1rem; vertical-align: middle;">
                                     <div class="btn-group btn-group-sm">
                                         <a href="{{ url_for('prospect_detail', prospect_id=prospect.id) }}" class="btn btn-outline-primary">
                                             <i class="bi bi-eye"></i> View

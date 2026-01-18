@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "cold-emailer"
-version = "0.1.0"
+version = "1.0.0"
 description = "Local cold-email automation tool with state tracking, dynamic PDF attachments, and follow-up sequencing"
-authors = ["Your Name <you@example.com>"]
+authors = ["Neha <nehasutariya270200@gmail.com>"]
 readme = "README.md"
 packages = [{include = "cold_emailer", from = "src"}]
 
@@ -20,6 +20,8 @@ openpyxl = "^3.1.0"  # for Excel support
 email-validator = "^2.1.0"
 flask = "^3.0.0"  # for web interface
 gunicorn = "^21.2.0"  # production WSGI server
+flask-limiter = "^3.5.0"  # rate limiting
+flask-httpauth = "^4.8.0"  # basic authentication
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"

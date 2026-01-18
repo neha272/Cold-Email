@@ -82,6 +82,14 @@
                         </div>
                     </div>
                     
+                    <div class="mb-3">
+                        <label for="resume_display_name" class="form-label">Resume Display Name</label>
+                        <input type="text" class="form-control" id="resume_display_name" name="resume_display_name" 
+                               value="{{ prospect.resume_display_name or 'Neha Sutariya' }}" 
+                               placeholder="Neha Sutariya">
+                        <div class="form-text">This name will appear in the attachment filename (e.g., "Resume-Neha Sutariya.pdf")</div>
+                    </div>
+                    
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="sequence_id" class="form-label">Email Sequence</label>

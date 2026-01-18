@@ -487,36 +487,50 @@
         .table-responsive {
             border-radius: 12px;
             overflow: hidden;
+            background: rgba(28, 28, 30, 1) !important;
+        }
+        
+        .table {
+            background: rgba(28, 28, 30, 1) !important;
         }
         
         .table thead {
-            background: rgba(58, 58, 60, 0.6);
+            background: rgba(44, 44, 46, 1) !important;
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(99, 99, 102, 0.3) !important;
         }
         
         .table thead th {
             font-weight: 600;
             text-transform: uppercase;
-            font-size: 0.7rem;
+            font-size: 0.75rem;
             letter-spacing: 0.8px;
-            color: var(--text-secondary);
+            color: rgba(235, 235, 245, 0.6) !important;
             border: none;
             padding: 1rem 1.25rem;
             white-space: nowrap;
         }
         
+        .table tbody {
+            background: rgba(28, 28, 30, 1) !important;
+        }
+        
+        .table tbody tr {
+            background: rgba(28, 28, 30, 1) !important;
+            border-bottom: 1px solid rgba(99, 99, 102, 0.2) !important;
+        }
+        
         .table tbody td {
             padding: 1rem 1.25rem;
-            border-color: rgba(255, 255, 255, 0.08);
+            border-color: rgba(99, 99, 102, 0.2);
             vertical-align: middle;
             font-weight: 500;
-            color: var(--text-primary);
+            color: rgba(235, 235, 245, 0.9) !important;
         }
         
         .table tbody td strong {
-            color: var(--text-primary);
+            color: rgba(235, 235, 245, 0.9) !important;
             font-weight: 600;
         }
         
@@ -526,7 +540,7 @@
         }
         
         .table-hover tbody tr:hover {
-            background: rgba(10, 132, 255, 0.1);
+            background: rgba(44, 44, 46, 0.8) !important;
             border-left: 2px solid var(--primary-color);
         }
         

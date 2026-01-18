@@ -14,6 +14,11 @@ services:
       - FLASK_ENV=${FLASK_ENV:-production}
       - PORT=${PORT:-5000}
       
+      # Web Authentication (Optional)
+      - WEB_AUTH_USERNAME=${WEB_AUTH_USERNAME}
+      - WEB_AUTH_PASSWORD=${WEB_AUTH_PASSWORD}
+      - WEB_AUTH_PASSWORD_HASH=${WEB_AUTH_PASSWORD_HASH}
+      
       # Gunicorn (production WSGI server)
       - GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}
       - GUNICORN_LOG_LEVEL=${GUNICORN_LOG_LEVEL:-info}
@@ -48,7 +53,7 @@ services:
       - ./config:/app/config:ro
       - ./templates:/app/templates:ro
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/').read()"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health').read()"]
       interval: 30s
       timeout: 10s
       retries: 3

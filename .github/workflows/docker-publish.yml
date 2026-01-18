@@ -33,6 +33,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Extract version from pyproject.toml
+        id: pyproject_version
+        run: |
+          VERSION=$(grep -E '^version = ' pyproject.toml | sed -E 's/version = "(.*)"/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version from pyproject.toml: $VERSION"
+
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5
@@ -45,6 +52,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ steps.pyproject_version.outputs.version }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -90,12 +98,15 @@ jobs:
             ## 🚀 Release ${{ steps.tag_version.outputs.version }}
 
             ### 📦 Docker Image
-            - **Image**: `ghcr.io/${{ env.IMAGE_NAME }}:${{ steps.tag_version.outputs.version }}`
+            - **Version Tag**: `ghcr.io/${{ env.IMAGE_NAME }}:${{ steps.tag_version.outputs.version }}`
+            - **Semver Tag**: `ghcr.io/${{ env.IMAGE_NAME }}:${{ steps.pyproject_version.outputs.version }}`
             - **Latest**: `ghcr.io/${{ env.IMAGE_NAME }}:latest`
 
             ### 🚀 Quick Start
             ```bash
             docker pull ghcr.io/${{ env.IMAGE_NAME }}:${{ steps.tag_version.outputs.version }}
+            # Or use semantic version
+            docker pull ghcr.io/${{ env.IMAGE_NAME }}:${{ steps.pyproject_version.outputs.version }}
             ```
 
             ### 📝 Changes

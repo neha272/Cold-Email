@@ -92,11 +92,11 @@ sequences:
     name: "Default Sequence"
     steps:
       - step: 0
-        template: "initial"
+        template: "Initial"
         wait_days: 0
         subject: "Quick question about {{ company }}"
       - step: 1
-        template: "followup_1"
+        template: "Followup 1"
         wait_days: 3
         subject: "Following up - {{ company }}"
 ```

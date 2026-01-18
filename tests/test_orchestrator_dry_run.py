@@ -50,8 +50,8 @@ def test_sequences() -> dict:
         "sequences": {
             "default": {
                 "steps": [
-                    {"step": 0, "template": "initial", "wait_days": 3, "subject": "Test"},
-                    {"step": 1, "template": "followup_1", "wait_days": 5, "subject": "Follow up"},
+                    {"step": 0, "template": "Initial", "wait_days": 3, "subject": "Test"},
+                    {"step": 1, "template": "Followup 1", "wait_days": 5, "subject": "Follow up"},
                 ]
             }
         }
@@ -139,7 +139,7 @@ def test_send_email_dry_run(
     # Create template
     templates_dir = tmp_path / "templates"
     templates_dir.mkdir()
-    (templates_dir / "initial.md").write_text("Subject: Test\n\nBody")
+    (templates_dir / "Initial.md").write_text("Subject: Test\n\nBody")
 
     # Create resume
     resume_dir = tmp_path / "resumes"
@@ -191,7 +191,7 @@ def test_send_email_dry_run(
 
         success, message_id = orchestrator.send_email_to_prospect(
             prospect=prospect,
-            template_name="initial",
+            template_name="Initial",
             subject="Test",
             step=0,
         )
@@ -207,7 +207,7 @@ def test_run_daily_dry_run(
     # Setup templates and resumes
     templates_dir = tmp_path / "templates"
     templates_dir.mkdir()
-    (templates_dir / "initial.md").write_text("Subject: Test\n\nBody")
+    (templates_dir / "Initial.md").write_text("Subject: Test\n\nBody")
 
     resume_dir = tmp_path / "resumes"
     resume_dir.mkdir()

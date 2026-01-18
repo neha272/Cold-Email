@@ -4,9 +4,12 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h2">
-        <i class="bi bi-pencil-square"></i> Edit Prospect
-    </h1>
+    <div>
+        <h1 class="h2 mb-2">
+            <i class="bi bi-pencil-square"></i> Edit Prospect
+        </h1>
+        <p class="text-muted mb-0" style="font-size: 1.05rem;">Update prospect information and settings</p>
+    </div>
     <a href="{{ url_for('prospect_detail', prospect_id=prospect.id) }}" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Back to Details
     </a>

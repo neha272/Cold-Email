@@ -5,17 +5,17 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h1 class="h2 mb-1">
+        <h1 class="h2 mb-2">
             <i class="bi bi-file-earmark-pdf"></i> Manage Resumes
         </h1>
-        <p class="text-muted mb-0">Upload and manage PDF resume files for your prospects</p>
+        <p class="text-muted mb-0" style="font-size: 1.05rem;">Upload and manage PDF resume files for your prospects</p>
     </div>
 </div>
 
 <!-- Upload Section -->
 <div class="card mb-4">
-    <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">
+    <div class="card-header" style="background: rgba(10, 132, 255, 0.2); border-bottom: 1px solid rgba(10, 132, 255, 0.3);">
+        <h5 class="mb-0" style="color: var(--primary-color);">
             <i class="bi bi-upload"></i> Upload Resume
         </h5>
     </div>
@@ -48,36 +48,36 @@
             <i class="bi bi-file-earmark-pdf"></i> Available Resumes ({{ resumes|length }})
         </h5>
     </div>
-    <div class="card-body">
+    <div class="card-body" style="background: #FFFFFF;">
         {% if resumes %}
-        <div class="table-responsive">
-            <table class="table table-hover">
+        <div class="table-responsive" style="background: #FFFFFF;">
+            <table class="table table-hover" style="background: #FFFFFF;">
                 <thead>
                     <tr>
-                        <th>Resume ID</th>
-                        <th>Filename</th>
-                        <th>Size</th>
-                        <th>Last Modified</th>
-                        <th class="text-end">Actions</th>
+                        <th style="color: #000000;">Resume ID</th>
+                        <th style="color: #000000;">Filename</th>
+                        <th style="color: #000000;">Size</th>
+                        <th style="color: #000000;">Last Modified</th>
+                        <th class="text-end" style="color: #000000;">Actions</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody style="background: #FFFFFF;">
                     {% for resume in resumes %}
-                    <tr>
-                        <td>
+                    <tr style="background: #FFFFFF;">
+                        <td style="background: #FFFFFF;">
                             <span class="badge bg-info">{{ resume.resume_id }}</span>
                         </td>
-                        <td>
-                            <i class="bi bi-file-earmark-pdf text-danger"></i>
-                            {{ resume.filename }}
+                        <td style="background: #FFFFFF; color: #000000 !important;">
+                            <i class="bi bi-file-earmark-pdf" style="color: #FF453A; margin-right: 0.5rem;"></i>
+                            <span style="color: #000000 !important;">{{ resume.filename }}</span>
                         </td>
-                        <td>{{ resume.size_mb }} MB</td>
-                        <td>
-                            <small class="text-muted">
+                        <td style="background: #FFFFFF; color: #000000 !important;">{{ resume.size_mb }} MB</td>
+                        <td style="background: #FFFFFF;">
+                            <small style="color: rgba(0, 0, 0, 0.7) !important;">
                                 {{ resume.modified_time|timesince }}
                             </small>
                         </td>
-                        <td class="text-end">
+                        <td class="text-end" style="background: #FFFFFF;">
                             <form method="POST" action="{{ url_for('delete_resume', resume_id=resume.resume_id) }}" 
                                   style="display: inline;"
                                   onsubmit="return confirm('Are you sure you want to delete this resume? This action cannot be undone.');">
@@ -102,11 +102,11 @@
 
 <!-- Info Section -->
 <div class="alert alert-secondary mt-3">
-    <h6><i class="bi bi-info-circle"></i> How to Use</h6>
-    <ul class="mb-0">
-        <li><strong>Upload:</strong> Select a PDF file and click Upload. The filename (without .pdf) becomes the resume ID.</li>
-        <li><strong>Use in Prospects:</strong> When adding or editing prospects, select this resume from the dropdown.</li>
-        <li><strong>Delete:</strong> You can only delete resumes that are not currently assigned to any prospect.</li>
+    <h6 style="color: var(--text-primary);"><i class="bi bi-info-circle"></i> How to Use</h6>
+    <ul class="mb-0" style="color: var(--text-primary);">
+        <li style="margin-bottom: 0.5rem;"><strong>Upload:</strong> Select a PDF file and click Upload. The filename (without .pdf) becomes the resume ID.</li>
+        <li style="margin-bottom: 0.5rem;"><strong>Use in Prospects:</strong> When adding or editing prospects, select this resume from the dropdown.</li>
+        <li style="margin-bottom: 0.5rem;"><strong>Delete:</strong> You can only delete resumes that are not currently assigned to any prospect.</li>
         <li><strong>File Naming:</strong> Use descriptive names like <code>john-doe-swe.pdf</code> or <code>resume-v1.pdf</code></li>
     </ul>
 </div>
@@ -114,8 +114,8 @@
 <!-- Storage Location -->
 <div class="card mt-3">
     <div class="card-body">
-        <p class="mb-0">
-            <i class="bi bi-folder"></i> 
+        <p class="mb-0" style="color: var(--text-primary);">
+            <i class="bi bi-folder" style="color: var(--primary-color);"></i> 
             <strong>Storage Location:</strong> 
             <code>{{ resumes_dir }}</code>
         </p>

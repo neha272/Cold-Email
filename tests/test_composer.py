@@ -14,8 +14,8 @@ def templates_dir(tmp_path: Path) -> Path:
     templates = tmp_path / "templates"
     templates.mkdir()
 
-    # Create initial template
-    (templates / "initial.md").write_text(
+    # Create Initial template
+    (templates / "Initial.md").write_text(
         """Subject: Quick question about {{ company }}
 
 Hi {{ full_name }},
@@ -27,7 +27,7 @@ Best regards,
     )
 
     # Create followup template
-    (templates / "followup_1.md").write_text(
+    (templates / "Followup 1.md").write_text(
         """Subject: Following up
 
 Hi {{ full_name }},
@@ -62,7 +62,7 @@ def test_load_template(templates_dir: Path) -> None:
         sender_email="sender@example.com",
     )
 
-    template = composer.load_template("initial")
+    template = composer.load_template("Initial")
     assert template is not None
 
 
@@ -121,7 +121,7 @@ def test_render_template(templates_dir: Path) -> None:
         sender_email="sender@example.com",
     )
 
-    template = composer.load_template("initial")
+    template = composer.load_template("Initial")
     variables = {
         "full_name": "John Doe",
         "company": "Acme Corp",
@@ -147,7 +147,7 @@ def test_compose_email(templates_dir: Path) -> None:
     }
 
     msg = composer.compose_email(
-        template_name="initial",
+        template_name="Initial",
         to_email="recipient@example.com",
         to_name="John Doe",
         variables=variables,
@@ -174,7 +174,7 @@ def test_compose_email_subject_override(templates_dir: Path) -> None:
     }
 
     msg = composer.compose_email(
-        template_name="initial",
+        template_name="Initial",
         to_email="recipient@example.com",
         to_name="John Doe",
         variables=variables,
@@ -193,7 +193,7 @@ def test_compose_email_reply_to(templates_dir: Path) -> None:
     )
 
     msg = composer.compose_email(
-        template_name="initial",
+        template_name="Initial",
         to_email="recipient@example.com",
         to_name="John Doe",
         reply_to="reply@example.com",
@@ -241,8 +241,8 @@ def test_get_sequence_step() -> None:
         "sequences": {
             "default": {
                 "steps": [
-                    {"step": 0, "template": "initial", "wait_days": 3},
-                    {"step": 1, "template": "followup_1", "wait_days": 5},
+                    {"step": 0, "template": "Initial", "wait_days": 3},
+                    {"step": 1, "template": "Followup 1", "wait_days": 5},
                 ]
             }
         }
@@ -250,12 +250,12 @@ def test_get_sequence_step() -> None:
 
     step = composer.get_sequence_step(sequences, "default", 0)
     assert step is not None
-    assert step["template"] == "initial"
+    assert step["template"] == "Initial"
     assert step["wait_days"] == 3
 
     step = composer.get_sequence_step(sequences, "default", 1)
     assert step is not None
-    assert step["template"] == "followup_1"
+    assert step["template"] == "Followup 1"
 
     step = composer.get_sequence_step(sequences, "default", 99)
     assert step is None

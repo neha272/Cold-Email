@@ -4,10 +4,13 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h2">
-        <i class="bi bi-person-circle"></i> Prospect Details
-    </h1>
-    <div class="btn-group">
+    <div>
+        <h1 class="h2 mb-2">
+            <i class="bi bi-person-circle"></i> Prospect Details
+        </h1>
+        <p class="text-muted mb-0" style="font-size: 1.05rem;">View complete prospect information and activity</p>
+    </div>
+    <div class="d-flex gap-2">
         <a href="{{ url_for('prospects_list') }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Back to List
         </a>
@@ -93,24 +96,24 @@
                                 <div class="d-flex">
                                     <div class="me-3">
                                         {% if event.event_type == 'SEND_SUCCESS' %}
-                                            <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                                                <i class="bi bi-send-check"></i>
+                                            <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: var(--gradient-success); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">
+                                                <i class="bi bi-send-check" style="font-size: 1.25rem;"></i>
                                             </div>
                                         {% elif event.event_type == 'REPLY_DETECTED' %}
-                                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                                                <i class="bi bi-reply"></i>
+                                            <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: var(--gradient-primary); box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);">
+                                                <i class="bi bi-reply" style="font-size: 1.25rem;"></i>
                                             </div>
                                         {% elif event.event_type == 'SEND_FAIL' %}
-                                            <div class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                                                <i class="bi bi-x-circle"></i>
+                                            <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: var(--gradient-danger); box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);">
+                                                <i class="bi bi-x-circle" style="font-size: 1.25rem;"></i>
                                             </div>
                                         {% elif event.event_type == 'SEND_ATTEMPT' %}
-                                            <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                                                <i class="bi bi-send"></i>
+                                            <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: var(--gradient-info); box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);">
+                                                <i class="bi bi-send" style="font-size: 1.25rem;"></i>
                                             </div>
                                         {% else %}
-                                            <div class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                                                <i class="bi bi-info"></i>
+                                            <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: linear-gradient(135deg, #6c757d 0%, #495057 100%); box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);">
+                                                <i class="bi bi-info" style="font-size: 1.25rem;"></i>
                                             </div>
                                         {% endif %}
                                     </div>

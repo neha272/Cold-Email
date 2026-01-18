@@ -10,15 +10,15 @@ sequences:
     # schedule_initial_at: null  # Immediate sending for testing
     steps:
       - step: 0
-        template: "initial"
+        template: "Initial"
         wait_days: 0  # TESTING: Set to 0 for immediate follow-up (change back to 3 for production)
         subject: "Application for {{ role_title }} position at {{ company }}"
       - step: 1
-        template: "followup_1"
+        template: "Followup 1"
         wait_days: 0  # TESTING: Set to 0 for immediate follow-up (change back to 5 for production)
         subject: "Following up on my application for {{ role_title }} at {{ company }}"
       - step: 2
-        template: "followup_2"
+        template: "Followup 2"
         wait_days: 0  # TESTING: Set to 0 for immediate follow-up (change back to 7 for production)
         subject: "Final follow-up: {{ role_title }} position at {{ company }}"
 
@@ -27,15 +27,15 @@ sequences:
     schedule_initial_at: "09:00"  # Schedule for 9 AM CST next day
     steps:
       - step: 0
-        template: "initial"
+        template: "Initial"
         wait_days: 2
         subject: "Application for {{ role_title }} position at {{ company }}"
       - step: 1
-        template: "followup_1"
+        template: "Followup 1"
         wait_days: 3
         subject: "Following up on my application for {{ role_title }} at {{ company }}"
       - step: 2
-        template: "followup_2"
+        template: "Followup 2"
         wait_days: 4
         subject: "Final follow-up: {{ role_title }} position at {{ company }}"
 
@@ -44,14 +44,14 @@ sequences:
     schedule_initial_at: "09:00"  # Schedule for 9 AM CST next day
     steps:
       - step: 0
-        template: "initial"
+        template: "Initial"
         wait_days: 5
         subject: "Application for {{ role_title }} position at {{ company }}"
       - step: 1
-        template: "followup_1"
+        template: "Followup 1"
         wait_days: 7
         subject: "Following up on my application for {{ role_title }} at {{ company }}"
       - step: 2
-        template: "followup_2"
+        template: "Followup 2"
         wait_days: 10
         subject: "Final follow-up: {{ role_title }} position at {{ company }}"

@@ -191,7 +191,7 @@ def test_message_event_creation(db_session: Session) -> None:
         "prospect_id": prospect.id,
         "event_type": MessageEventType.SEND_SUCCESS.value,
         "subject": "Test Subject",
-        "template_id": "initial",
+        "template_id": "Initial",
         "outbound_message_id": "msg-123",
     }
     event = event_repo.create(event_data)

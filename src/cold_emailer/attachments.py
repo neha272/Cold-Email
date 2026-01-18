@@ -295,51 +295,53 @@ class ResumeManifest:
             workbook.close()
         else:
             # Load from CSV
+            def _process_csv(reader: "csv.DictReader[str]") -> None:
+                for row in reader:
+                    resume_id = row.get("resume_id", "").strip()
+                    if not resume_id:
+                        continue
+
+                    relative_path = row.get("relative_path", "").strip()
+                    sha256 = row.get("sha256", "").strip() or None
+                    version = row.get("version", "").strip() or None
+
+                    # Resolve absolute path
+                    if relative_path:
+                        abs_path = (self.base_path / relative_path).resolve()
+                    else:
+                        abs_path = None
+
+                    # Compute checksum if missing
+                    if abs_path and abs_path.exists() and not sha256:
+                        try:
+                            sha256 = compute_sha256(abs_path)
+                            logger.info(
+                                "Computed checksum for resume",
+                                resume_id=resume_id,
+                                sha256=sha256,
+                            )
+                        except Exception as e:
+                            logger.warning(
+                                "Failed to compute checksum",
+                                resume_id=resume_id,
+                                error=str(e),
+                            )
+
+                    self.manifest[resume_id] = {
+                        "resume_id": resume_id,
+                        "relative_path": relative_path,
+                        "absolute_path": abs_path,
+                        "sha256": sha256,
+                        "version": version,
+                    }
+
             try:
                 with open(self.manifest_path, encoding="utf-8") as f:
-                    reader = csv.DictReader(f)
+                    _process_csv(csv.DictReader(f))
             except UnicodeDecodeError:
                 # Try with different encoding if UTF-8 fails
                 with open(self.manifest_path, encoding="utf-8-sig") as f:
-                    reader = csv.DictReader(f)
-            for row in reader:
-                resume_id = row.get("resume_id", "").strip()
-                if not resume_id:
-                    continue
-
-                relative_path = row.get("relative_path", "").strip()
-                sha256 = row.get("sha256", "").strip() or None
-                version = row.get("version", "").strip() or None
-
-                # Resolve absolute path
-                if relative_path:
-                    abs_path = (self.base_path / relative_path).resolve()
-                else:
-                    abs_path = None
-
-                # Compute checksum if missing
-                if abs_path and abs_path.exists() and not sha256:
-                    try:
-                        sha256 = compute_sha256(abs_path)
-                        logger.info(
-                            "Computed checksum for resume",
-                            resume_id=resume_id,
-                            sha256=sha256,
-                        )
-                    except Exception as e:
-                        logger.warning(
-                            "Failed to compute checksum",
-                            resume_id=resume_id,
-                            error=str(e),
-                        )
-
-                self.manifest[resume_id] = {
-                    "resume_id": resume_id,
-                    "relative_path": relative_path,
-                    "absolute_path": abs_path,
-                    "sha256": sha256,
-                    "version": version,
-                }
+                    _process_csv(csv.DictReader(f))
 
         logger.info("Loaded resume manifest", count=len(self.manifest))
 

@@ -2,7 +2,6 @@
 
 import json
 from pathlib import Path
-from typing import Annotated
 
 import typer
 
@@ -26,14 +25,12 @@ logger = get_logger(__name__)
 
 @app.command()
 def init_db(
-    config: Annotated[
-        Path,
-        typer.Option(
-            "--config",
-            "-c",
-            help="Path to config file",
-        ),
-    ] = Path("config/settings.yaml"),
+    config: Path = typer.Option(
+        Path("config/settings.yaml"),
+        "--config",
+        "-c",
+        help="Path to config file",
+    ),
 ) -> None:
     """Initialize the SQLite database."""
     logger.info("Initializing database", command="init-db")
@@ -210,32 +207,33 @@ def run(
 
 @app.command()
 def status(
-    limit: Annotated[
-        int,
-        typer.Option(
-            "--limit",
-            "-l",
-            help="Maximum number of prospects to show",
-        ),
-    ] = 50,
-    config: Annotated[
-        Path,
-        typer.Option(
-            "--config",
-            "-c",
-            help="Path to config file",
-        ),
-    ] = Path("config/settings.yaml"),
+    limit: int = typer.Option(
+        50,
+        "--limit",
+        "-l",
+        help="Maximum number of prospects to show",
+    ),
+    config: Path = typer.Option(
+        Path("config/settings.yaml"),
+        "--config",
+        "-c",
+        help="Path to config file",
+    ),
 ) -> None:
     """Show status of prospects."""
     logger.info("Showing status", limit=limit, command="status")
     try:
         settings = load_config(str(config))
         engine = create_database_engine(db_path=settings.database.path, echo=settings.database.echo)
+        # Ensure schema exists so status works on fresh installs
+        init_database(engine)
 
         with get_session(engine) as session:
             repo = ProspectRepository(session)
-            prospects = repo.get_all(limit=limit)
+            try:
+                prospects = repo.get_all(limit=limit)
+            except Exception:
+                prospects = []
 
             if not prospects:
                 typer.echo("No prospects found in database.")
@@ -271,30 +269,24 @@ def status(
 
 @app.command()
 def export_events(
-    out: Annotated[
-        Path,
-        typer.Option(
-            "--out",
-            "-o",
-            help="Output file path",
-        ),
-    ] = Path("logs/events.jsonl"),
-    config: Annotated[
-        Path,
-        typer.Option(
-            "--config",
-            "-c",
-            help="Path to config file",
-        ),
-    ] = Path("config/settings.yaml"),
-    limit: Annotated[
-        int | None,
-        typer.Option(
-            "--limit",
-            "-l",
-            help="Maximum number of events to export",
-        ),
-    ] = None,
+    out: Path = typer.Option(
+        Path("logs/events.jsonl"),
+        "--out",
+        "-o",
+        help="Output file path",
+    ),
+    config: Path = typer.Option(
+        Path("config/settings.yaml"),
+        "--config",
+        "-c",
+        help="Path to config file",
+    ),
+    limit: int | None = typer.Option(
+        None,
+        "--limit",
+        "-l",
+        help="Maximum number of events to export",
+    ),
 ) -> None:
     """Export message events to JSONL file."""
     logger.info("Exporting events", output=str(out), command="export-events")
@@ -336,30 +328,24 @@ def export_events(
 
 @app.command()
 def export_prospects(
-    out: Annotated[
-        Path,
-        typer.Option(
-            "--out",
-            "-o",
-            help="Output Excel file path",
-        ),
-    ] = Path("data/prospects.xlsx"),
-    config: Annotated[
-        Path,
-        typer.Option(
-            "--config",
-            "-c",
-            help="Path to config file",
-        ),
-    ] = Path("config/settings.yaml"),
-    status_filter: Annotated[
-        str | None,
-        typer.Option(
-            "--status",
-            "-s",
-            help="Filter by status (REPLIED, COMPLETED, etc.). If not specified, exports all completed/replied prospects.",
-        ),
-    ] = None,
+    out: Path = typer.Option(
+        Path("data/prospects.xlsx"),
+        "--out",
+        "-o",
+        help="Output Excel file path",
+    ),
+    config: Path = typer.Option(
+        Path("config/settings.yaml"),
+        "--config",
+        "-c",
+        help="Path to config file",
+    ),
+    status_filter: str | None = typer.Option(
+        None,
+        "--status",
+        "-s",
+        help="Filter by status (REPLIED, COMPLETED, etc.). If not specified, exports all completed/replied prospects.",
+    ),
 ) -> None:
     """Export prospects to Excel with NO RESPONSE and RESPONSE sheets."""
     logger.info("Exporting prospects", output=str(out), command="export-prospects")
@@ -414,14 +400,12 @@ def export_prospects(
 
 @app.command()
 def check_replies(
-    config: Annotated[
-        Path,
-        typer.Option(
-            "--config",
-            "-c",
-            help="Path to config file",
-        ),
-    ] = Path("config/settings.yaml"),
+    config: Path = typer.Option(
+        Path("config/settings.yaml"),
+        "--config",
+        "-c",
+        help="Path to config file",
+    ),
 ) -> None:
     """Manually check for replies (works even if IMAP wasn't configured during run)."""
     logger.info("Checking for replies", command="check-replies")
@@ -458,14 +442,12 @@ def check_replies(
 
 @app.callback()
 def main(
-    verbose: Annotated[
-        bool,
-        typer.Option(
-            "--verbose",
-            "-v",
-            help="Enable verbose logging",
-        ),
-    ] = False,
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Enable verbose logging",
+    ),
 ) -> None:
     """Cold Emailer - Local cold-email automation tool."""
     # Basic logging setup (detailed config loaded per-command)

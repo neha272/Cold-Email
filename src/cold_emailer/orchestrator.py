@@ -149,7 +149,7 @@ class Orchestrator:
             return None
 
     def ingest_prospects_file(
-        self, file_path: Path, reset_state: bool = False
+        self, file_path: Path, reset_state: bool = False, manifest: Any | None = None
     ) -> tuple[int, int, list[dict[str, Any]]]:
         """
         Ingest prospects from file.
@@ -172,6 +172,7 @@ class Orchestrator:
             created, updated, errors = ingest_prospects(
                 file_path=file_path,
                 resumes_dir=resumes_dir,
+                manifest=manifest,
                 repo=repo,
                 reset_state=reset_state,
             )
@@ -435,7 +436,8 @@ class Orchestrator:
                         )
 
                 if resume_path:
-                    is_valid, error = validate_resume_file(resume_path, prospect.resume_sha256)
+                    expected_sha256 = None if self.dry_run else prospect.resume_sha256
+                    is_valid, error = validate_resume_file(resume_path, expected_sha256)
                     if not is_valid:
                         logger.error(
                             "Resume validation failed, not sending",
@@ -489,7 +491,9 @@ class Orchestrator:
                 # Send email
                 if self.smtp_sender and resume_path:
                     # Use resume filename from prospect data or default to resume_id
-                    display_name = prospect.get("resume_display_name") or f"{prospect['resume_id']}"
+                    display_name = getattr(prospect, "resume_display_name", None) or str(
+                        getattr(prospect, "resume_id", "")
+                    )
                     # Format as "Resume-Name.pdf" replacing spaces with hyphens
                     if display_name and not display_name.endswith(".pdf"):
                         resume_filename = f"Resume-{display_name.replace(' ', '_')}.pdf"
@@ -638,6 +642,7 @@ class Orchestrator:
     def run_daily(
         self,
         prospects_file: Path | None = None,
+        manifest: Any | None = None,
     ) -> dict[str, Any]:
         """
         Run daily automation workflow.
@@ -662,7 +667,7 @@ class Orchestrator:
         # Step 1: Ingest prospects if file provided
         if prospects_file:
             logger.info("Ingesting prospects", file=str(prospects_file))
-            created, updated, errors = self.ingest_prospects_file(prospects_file)
+            created, updated, errors = self.ingest_prospects_file(prospects_file, manifest=manifest)
             summary["ingested"]["created"] = created
             summary["ingested"]["updated"] = updated
             summary["ingested"]["errors"] = errors

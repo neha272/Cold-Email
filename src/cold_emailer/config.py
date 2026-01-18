@@ -168,7 +168,9 @@ def load_config(config_path: str = "config/settings.yaml") -> Settings:
                                 default = 0  # type: ignore[assignment]
                         elif "bool" in default_part:
                             default = os.getenv(var_name, "false").lower() == "true"  # type: ignore[assignment]
-                return os.getenv(var_name, default)
+                # If no default was specified and the env var is missing, fall back to empty
+                # string so Pydantic string fields don't crash on None.
+                return os.getenv(var_name, default if default is not None else "")
             return obj
         return obj
 

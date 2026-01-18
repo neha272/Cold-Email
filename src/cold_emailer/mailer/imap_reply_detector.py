@@ -273,8 +273,16 @@ class ReplyDetector:
                         # Check each outbound message ID
                         for outbound_id in outbound_message_ids:
                             if self._is_reply_by_message_id(msg, outbound_id):
+                                message_id = self._extract_message_id(msg)
+                                # Deduplicate replies (some IMAP servers / mocks can surface
+                                # the same message multiple times across message numbers).
+                                if message_id and any(
+                                    r.get("message_id") == message_id for r in replies[outbound_id]
+                                ):
+                                    continue
+
                                 reply_info = {
-                                    "message_id": self._extract_message_id(msg),
+                                    "message_id": message_id,
                                     "from": msg.get("From", ""),
                                     "subject": msg.get("Subject", ""),
                                     "date": msg.get("Date", ""),

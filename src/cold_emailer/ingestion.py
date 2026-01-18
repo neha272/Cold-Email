@@ -7,7 +7,7 @@ from typing import Any
 
 from openpyxl import load_workbook  # type: ignore[import-untyped]
 
-from cold_emailer.attachments import find_resume_file
+from cold_emailer.attachments import ResumeManifest, find_resume_file
 from cold_emailer.utils import get_logger
 
 logger = get_logger(__name__)
@@ -288,8 +288,9 @@ def parse_excel(file_path: Path) -> list[dict[str, Any]]:
 
 def ingest_prospects(
     file_path: Path,
-    resumes_dir: Path,
     repo: Any,  # ProspectRepository
+    resumes_dir: Path | None = None,
+    manifest: ResumeManifest | None = None,
     reset_state: bool = False,
 ) -> tuple[int, int, list[dict[str, Any]]]:
     """
@@ -297,7 +298,8 @@ def ingest_prospects(
 
     Args:
         file_path: Path to prospects CSV/Excel file
-        resumes_dir: Directory containing resume PDF files
+        resumes_dir: Directory containing resume PDF files (used when manifest not provided)
+        manifest: ResumeManifest instance (optional alternative to resumes_dir)
         repo: ProspectRepository instance
         reset_state: If True, reset prospect state (default: False, preserve state)
 
@@ -329,7 +331,12 @@ def ingest_prospects(
             resume_id = prospect_data["resume_id"]
 
             # Find and validate resume file
-            is_valid, error_msg, resume_info = find_resume_file(resume_id, resumes_dir)
+            if manifest is not None:
+                is_valid, error_msg, resume_info = manifest.validate_resume(resume_id)
+            else:
+                if resumes_dir is None:
+                    raise ValueError("Either resumes_dir or manifest must be provided")
+                is_valid, error_msg, resume_info = find_resume_file(resume_id, resumes_dir)
             if not is_valid:
                 error_detail = {
                     "email": prospect_data.get("email"),

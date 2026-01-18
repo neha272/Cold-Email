@@ -7,7 +7,7 @@ sequences:
     # Schedule initial email for next day at specified time (24-hour format, CST timezone)
     # Format: "HH:MM" - If current time is past this time today, schedules for next day
     # Set to null or remove to send immediately when campaign runs
-    schedule_initial_at: "09:00"  # Schedule for 9 AM CST next day
+    # schedule_initial_at: null  # Immediate sending for testing
     steps:
       - step: 0
         template: "initial"
@@ -24,7 +24,7 @@ sequences:
 
   aggressive:
     name: "Aggressive Sequence"
-    schedule_initial_at: "08:00"  # Schedule for 8 AM CST next day (earlier for aggressive)
+    schedule_initial_at: "09:00"  # Schedule for 9 AM CST next day
     steps:
       - step: 0
         template: "initial"
@@ -41,7 +41,7 @@ sequences:
 
   gentle:
     name: "Gentle Sequence"
-    schedule_initial_at: "10:00"  # Schedule for 10 AM CST next day (later for gentle)
+    schedule_initial_at: "09:00"  # Schedule for 9 AM CST next day
     steps:
       - step: 0
         template: "initial"

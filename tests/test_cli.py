@@ -1,11 +1,8 @@
 """Tests for CLI interface."""
 
-from pathlib import Path
-
-import pytest
-from typer.testing import CliRunner
 
 from cold_emailer.cli import app
+from typer.testing import CliRunner
 
 runner = CliRunner()
 

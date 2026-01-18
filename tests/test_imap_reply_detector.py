@@ -1,11 +1,9 @@
 """Tests for IMAP reply detector."""
 
-from datetime import datetime
 from email.message import EmailMessage
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from cold_emailer.mailer.imap_reply_detector import IMAPConfig, ReplyDetector
 
 

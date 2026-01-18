@@ -32,8 +32,8 @@ def compute_sha256(file_path: Path) -> str:
             for byte_block in iter(lambda: f.read(4096), b""):
                 sha256_hash.update(byte_block)
         return sha256_hash.hexdigest()
-    except IOError as e:
-        raise IOError(f"Failed to read file {file_path}: {e}") from e
+    except OSError as e:
+        raise OSError(f"Failed to read file {file_path}: {e}") from e
 
 
 def validate_resume_file(
@@ -80,25 +80,25 @@ def validate_resume_file(
 def list_available_resumes(resumes_dir: Path) -> list[dict[str, Any]]:
     """
     List all available resume files in the resumes directory.
-    
+
     Args:
         resumes_dir: Directory containing resume PDF files
-        
+
     Returns:
         List of dictionaries with resume info (filename, size, modified_time)
     """
     resumes = []
-    
+
     if not resumes_dir.exists() or not resumes_dir.is_dir():
         logger.warning("Resumes directory not found", path=str(resumes_dir))
         return resumes
-    
+
     for file_path in resumes_dir.glob("*.pdf"):
         if file_path.is_file():
             stat = file_path.stat()
             # Get filename without extension
             resume_id = file_path.stem
-            
+
             resumes.append({
                 "resume_id": resume_id,
                 "filename": file_path.name,
@@ -107,10 +107,10 @@ def list_available_resumes(resumes_dir: Path) -> list[dict[str, Any]]:
                 "modified_time": stat.st_mtime,
                 "path": str(file_path),
             })
-    
+
     # Sort by modified time (newest first)
     resumes.sort(key=lambda x: x["modified_time"], reverse=True)
-    
+
     logger.info("Listed available resumes", count=len(resumes))
     return resumes
 
@@ -118,15 +118,15 @@ def list_available_resumes(resumes_dir: Path) -> list[dict[str, Any]]:
 def find_resume_file(resume_id: str, resumes_dir: Path) -> tuple[bool, str | None, dict[str, Any] | None]:
     """
     Find resume file by ID in the resumes directory.
-    
+
     The resume_id can be:
     - Just the filename (e.g., "RES-001")
     - Filename with extension (e.g., "RES-001.pdf")
-    
+
     Args:
         resume_id: Resume identifier (filename without or with extension)
         resumes_dir: Directory containing resume PDF files
-        
+
     Returns:
         Tuple of (is_valid, error_message, resume_info)
         - is_valid: True if resume file found and valid
@@ -135,31 +135,31 @@ def find_resume_file(resume_id: str, resumes_dir: Path) -> tuple[bool, str | Non
     """
     if not resumes_dir.exists():
         return False, f"Resumes directory not found: {resumes_dir}", None
-    
+
     if not resumes_dir.is_dir():
         return False, f"Resumes path is not a directory: {resumes_dir}", None
-    
+
     # Try different variations of the filename
     possible_names = [
         resume_id,  # Exact match
         f"{resume_id}.pdf",  # With .pdf extension
     ]
-    
+
     resume_path = None
     for name in possible_names:
         candidate_path = resumes_dir / name
         if candidate_path.exists() and candidate_path.is_file():
             resume_path = candidate_path
             break
-    
+
     if not resume_path:
         return False, f"Resume file not found: {resume_id} (searched in {resumes_dir})", None
-    
+
     # Validate the file
     is_valid, error_msg = validate_resume_file(resume_path)
     if not is_valid:
         return False, error_msg or "Resume file validation failed", None
-    
+
     # Compute checksum
     try:
         sha256 = compute_sha256(resume_path)
@@ -171,13 +171,13 @@ def find_resume_file(resume_id: str, resumes_dir: Path) -> tuple[bool, str | Non
         )
     except Exception as e:
         return False, f"Failed to compute checksum: {e}", None
-    
+
     resume_info = {
         "resume_id": resume_id,
         "absolute_path": resume_path.resolve(),
         "sha256": sha256,
     }
-    
+
     return True, None, resume_info
 
 
@@ -206,21 +206,21 @@ class ResumeManifest:
             return
 
         file_ext = self.manifest_path.suffix.lower()
-        
+
         if file_ext in (".xlsx", ".xls"):
             # Load from Excel
             from openpyxl import load_workbook
-            
+
             workbook = load_workbook(self.manifest_path, read_only=True, data_only=True)
             sheet = workbook.active
-            
+
             # Read headers
             headers_row = next(sheet.iter_rows(min_row=1, max_row=1, values_only=True))
             headers = [str(h).strip() if h else "" for h in headers_row]
-            
+
             # Create column index map
             col_map = {header: idx for idx, header in enumerate(headers)}
-            
+
             # Parse rows
             for row_num, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
                 try:
@@ -231,24 +231,24 @@ class ResumeManifest:
                     resume_id = str(row[resume_id_col]).strip() if row[resume_id_col] else ""
                     if not resume_id:
                         continue
-                    
+
                     relative_path_col = col_map.get("relative_path")
                     relative_path = str(row[relative_path_col]).strip() if relative_path_col is not None and row[relative_path_col] else ""
-                    
+
                     sha256_col = col_map.get("sha256")
                     sha256 = str(row[sha256_col]).strip() if sha256_col is not None and row[sha256_col] else None
                     if sha256:
                         sha256 = sha256 if sha256 else None
-                    
+
                     version_col = col_map.get("version")
                     version = str(row[version_col]).strip() if version_col is not None and row[version_col] else None
-                    
+
                     # Resolve absolute path
                     if relative_path:
                         abs_path = (self.base_path / relative_path).resolve()
                     else:
                         abs_path = None
-                    
+
                     # Compute checksum if missing
                     if abs_path and abs_path.exists() and not sha256:
                         try:
@@ -264,7 +264,7 @@ class ResumeManifest:
                                 resume_id=resume_id,
                                 error=str(e),
                             )
-                    
+
                     self.manifest[resume_id] = {
                         "resume_id": resume_id,
                         "relative_path": relative_path,
@@ -275,16 +275,16 @@ class ResumeManifest:
                 except Exception as e:
                     logger.warning("Error parsing manifest row", row=row_num, error=str(e))
                     continue
-            
+
             workbook.close()
         else:
             # Load from CSV
             try:
-                with open(self.manifest_path, "r", encoding="utf-8") as f:
+                with open(self.manifest_path, encoding="utf-8") as f:
                     reader = csv.DictReader(f)
             except UnicodeDecodeError:
                 # Try with different encoding if UTF-8 fails
-                with open(self.manifest_path, "r", encoding="utf-8-sig") as f:
+                with open(self.manifest_path, encoding="utf-8-sig") as f:
                     reader = csv.DictReader(f)
             for row in reader:
                 resume_id = row.get("resume_id", "").strip()

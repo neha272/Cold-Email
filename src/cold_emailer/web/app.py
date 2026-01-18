@@ -1,7 +1,7 @@
 """Flask web application for cold email campaign management."""
 
 import os
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 try:
@@ -14,15 +14,15 @@ except ImportError:
         ZoneInfo = None
 
 import yaml
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_file
-from werkzeug.utils import secure_filename
-from werkzeug.security import check_password_hash, generate_password_hash
-from sqlalchemy.exc import OperationalError
-from sqlalchemy import text
 from dotenv import load_dotenv
+from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
+from flask_httpauth import HTTPBasicAuth
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_httpauth import HTTPBasicAuth
+from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
+from werkzeug.security import check_password_hash
+from werkzeug.utils import secure_filename
 
 # Load environment variables from .env file
 load_dotenv()
@@ -71,21 +71,21 @@ def verify_password(username: str, password: str) -> bool:
     """Verify username and password for basic auth."""
     if not AUTH_ENABLED:
         return True  # Auth disabled, allow all
-    
+
     expected_username = os.environ.get("WEB_AUTH_USERNAME", "")
     expected_password_hash = os.environ.get("WEB_AUTH_PASSWORD_HASH", "")
     expected_password_plain = os.environ.get("WEB_AUTH_PASSWORD", "")
-    
+
     # Check username
     if username != expected_username:
         return False
-    
+
     # Check password (hashed or plain)
     if expected_password_hash:
         return check_password_hash(expected_password_hash, password)
     elif expected_password_plain:
         return password == expected_password_plain
-    
+
     return False
 
 # Load configuration
@@ -120,43 +120,43 @@ def reload_sequences():
 def calculate_next_action_time(sequence_id: str) -> datetime | None:
     """
     Calculate next_action_at based on sequence configuration.
-    
+
     Args:
         sequence_id: ID of the sequence
-        
+
     Returns:
         datetime object for next action, or None for immediate sending
     """
     sequence_config = sequences_dict.get(sequence_id, {})
     schedule_time = sequence_config.get("schedule_initial_at")
-    
+
     if not schedule_time:
         # No scheduling configured, send immediately (when campaign runs)
         return None
-    
+
     try:
         # Parse the time string (HH:MM format)
         hours, minutes = map(int, schedule_time.split(":"))
-        
+
         # Get current time
         now = datetime.now()
-        
+
         # Create scheduled datetime for today at specified time
         scheduled_time = now.replace(hour=hours, minute=minutes, second=0, microsecond=0)
-        
+
         # If the time has already passed today, schedule for tomorrow
         if scheduled_time <= now:
             scheduled_time += timedelta(days=1)
-        
+
         logger.info(
             "Calculated next action time",
             sequence_id=sequence_id,
             schedule_time=schedule_time,
             next_action_at=scheduled_time.isoformat()
         )
-        
+
         return scheduled_time
-        
+
     except Exception as e:
         logger.error(
             "Failed to parse schedule_initial_at",
@@ -175,11 +175,11 @@ def health():
         # Check database connectivity
         with get_session(engine) as session:
             session.execute(text("SELECT 1"))
-        
+
         return jsonify({
             "status": "healthy",
             "service": "cold-emailer",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }), 200
     except Exception as e:
         logger.error("Health check failed", error=str(e))
@@ -187,7 +187,7 @@ def health():
             "status": "unhealthy",
             "service": "cold-emailer",
             "error": str(e),
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }), 503
 
 
@@ -199,24 +199,24 @@ def index():
         with get_session(engine) as session:
             prospect_repo = ProspectRepository(session)
             event_repo = MessageEventRepository(session)
-            
+
             # Get statistics
             all_prospects = prospect_repo.get_all()
             total_prospects = len(all_prospects)
-            
+
             # Count by status
             status_counts = {}
             for prospect in all_prospects:
                 status = prospect.status
                 status_counts[status] = status_counts.get(status, 0) + 1
-            
+
             # Get recent events
             recent_events = event_repo.get_all_events(limit=10)
-            
+
             # Get due prospects
             now = datetime.utcnow()
             due_prospects = prospect_repo.get_due_prospects(now, limit=100)
-            
+
             return render_template(
                 "index.html",
                 total_prospects=total_prospects,
@@ -233,7 +233,7 @@ def index():
             # Determine if running in Docker or locally
             is_docker = os.path.exists("/.dockerenv") or os.environ.get("DOCKER_CONTAINER") == "true"
             init_cmd = "docker compose exec cold-emailer cold-emailer init-db" if is_docker else "poetry run cold-emailer init-db"
-            
+
             return render_template(
                 "error.html",
                 error_title="Database Not Initialized",
@@ -251,11 +251,11 @@ def prospects_list():
     """List all prospects with filtering."""
     status_filter = request.args.get("status")
     search_query = request.args.get("q", "").strip()
-    
+
     with get_session(engine) as session:
         prospect_repo = ProspectRepository(session)
         all_prospects = prospect_repo.get_all()
-        
+
         # Apply filters
         filtered_prospects = all_prospects
         if status_filter:
@@ -268,7 +268,7 @@ def prospects_list():
                 or (search_lower in p.full_name.lower() if p.full_name else False)
                 or (search_lower in p.company.lower() if p.company else False)
             ]
-        
+
         return render_template(
             "prospects.html",
             prospects=filtered_prospects,
@@ -286,12 +286,12 @@ def add_prospect():
     from cold_emailer.attachments import list_available_resumes
     resumes_dir = WORKSPACE_ROOT / settings.paths.resumes_dir
     available_resumes = list_available_resumes(resumes_dir)
-    
+
     if request.method == "POST":
         try:
             with get_session(engine) as session:
                 prospect_repo = ProspectRepository(session)
-                
+
                 # Get form data
                 prospect_data = {
                     "email": request.form.get("email", "").strip(),
@@ -303,7 +303,7 @@ def add_prospect():
                     "sequence_id": request.form.get("sequence_id", "default").strip() or "default",
                     "timezone": request.form.get("timezone", "").strip() or None,
                 }
-                
+
                 # Validate required fields
                 if not prospect_data["email"]:
                     flash("Email is required", "error")
@@ -317,43 +317,43 @@ def add_prospect():
                 if not prospect_data["resume_id"]:
                     flash("Resume ID is required", "error")
                     return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict, resumes=available_resumes)
-                
+
                 # Check if prospect already exists
                 existing = prospect_repo.get_by_email(prospect_data["email"])
                 if existing:
                     flash(f"Prospect with email {prospect_data['email']} already exists", "error")
                     return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict, resumes=available_resumes)
-                
+
                 # Validate resume file exists
                 from cold_emailer.attachments import find_resume_file
                 is_valid, error_msg, resume_info = find_resume_file(prospect_data["resume_id"], resumes_dir)
                 if not is_valid:
                     flash(f"Resume file not found: {error_msg or prospect_data['resume_id']}", "error")
                     return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict, resumes=available_resumes)
-                
+
                 if not resume_info:
                     flash(f"Resume info not found: {prospect_data['resume_id']}", "error")
                     return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict, resumes=available_resumes)
-                
+
                 prospect_data["resume_path"] = str(resume_info.get("absolute_path"))
                 prospect_data["resume_sha256"] = resume_info.get("sha256")
                 prospect_data["status"] = ProspectStatus.NEW.value
                 prospect_data["followup_step"] = 0
-                
+
                 # Calculate next_action_at based on sequence configuration
                 prospect_data["next_action_at"] = calculate_next_action_time(prospect_data["sequence_id"])
-                
+
                 # Create prospect
                 prospect_repo.create(prospect_data)
-                
+
                 flash(f"Prospect {prospect_data['full_name']} added successfully!", "success")
                 return redirect(url_for("prospects_list"))
-        
+
         except Exception as e:
             logger.error("Failed to add prospect", error=str(e))
             flash(f"Error adding prospect: {str(e)}", "error")
             return render_template("add_prospect.html", prospect=request.form.to_dict(), sequences=sequences_dict, resumes=available_resumes)
-    
+
     # GET request - show form
     return render_template("add_prospect.html", prospect={}, sequences=sequences_dict, resumes=available_resumes)
 
@@ -366,15 +366,15 @@ def edit_prospect(prospect_id):
     from cold_emailer.attachments import list_available_resumes
     resumes_dir = WORKSPACE_ROOT / settings.paths.resumes_dir
     available_resumes = list_available_resumes(resumes_dir)
-    
+
     with get_session(engine) as session:
         prospect_repo = ProspectRepository(session)
         prospect = prospect_repo.get_by_id(prospect_id)
-        
+
         if not prospect:
             flash("Prospect not found", "error")
             return redirect(url_for("prospects_list"))
-        
+
         if request.method == "POST":
             try:
                 # Get form data
@@ -388,7 +388,7 @@ def edit_prospect(prospect_id):
                     "sequence_id": request.form.get("sequence_id", "default").strip() or "default",
                     "timezone": request.form.get("timezone", "").strip() or None,
                 }
-                
+
                 # Validate required fields
                 if not prospect_data["email"]:
                     flash("Email is required", "error")
@@ -402,7 +402,7 @@ def edit_prospect(prospect_id):
                 if not prospect_data["resume_id"]:
                     flash("Resume ID is required", "error")
                     return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences_dict, resumes=available_resumes)
-                
+
                 # Update resume if changed
                 if prospect_data["resume_id"] != prospect.resume_id:
                     from cold_emailer.attachments import find_resume_file
@@ -412,7 +412,7 @@ def edit_prospect(prospect_id):
                         return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences_dict, resumes=available_resumes)
                     prospect_data["resume_path"] = str(resume_path)
                     prospect_data["resume_sha256"] = resume_info.get("sha256") if resume_info else None
-                
+
                 # Update prospect (preserve status and followup_step unless explicitly changed)
                 prospect.email = prospect_data["email"]
                 prospect.full_name = prospect_data["full_name"]
@@ -425,15 +425,15 @@ def edit_prospect(prospect_id):
                     prospect.resume_path = prospect_data["resume_path"]
                 if "resume_sha256" in prospect_data:
                     prospect.resume_sha256 = prospect_data["resume_sha256"]
-                
+
                 flash(f"Prospect {prospect_data['full_name']} updated successfully!", "success")
                 return redirect(url_for("prospect_detail", prospect_id=prospect.id))
-            
+
             except Exception as e:
                 logger.error("Failed to update prospect", error=str(e))
                 flash(f"Error updating prospect: {str(e)}", "error")
                 return render_template("edit_prospect.html", prospect=prospect, prospect_data=request.form.to_dict(), sequences=sequences_dict, resumes=available_resumes)
-        
+
         # GET request - show form
         return render_template("edit_prospect.html", prospect=prospect, prospect_data={}, sequences=sequences_dict, resumes=available_resumes)
 
@@ -447,17 +447,17 @@ def import_prospects():
             if "file" not in request.files:
                 flash("No file provided", "error")
                 return redirect(url_for("import_prospects"))
-            
+
             file = request.files["file"]
             if file.filename == "":
                 flash("No file selected", "error")
                 return redirect(url_for("import_prospects"))
-            
+
             # Save uploaded file temporarily
             filename = secure_filename(file.filename)
             filepath = DATA_DIR / filename
             file.save(str(filepath))
-            
+
             # Import using orchestrator
             orchestrator = Orchestrator(
                 settings=settings,
@@ -465,28 +465,28 @@ def import_prospects():
                 sequences=sequences,
                 dry_run=False,
             )
-            
+
             created, updated, errors = orchestrator.ingest_prospects_file(filepath, reset_state=False)
-            
+
             # Clean up temp file
             if filepath.exists():
                 filepath.unlink()
-            
+
             flash(
                 f"Import complete! Created: {created}, Updated: {updated}, Errors: {len(errors)}",
                 "success" if not errors else "warning",
             )
-            
+
             if errors:
                 flash(f"Errors: {', '.join(str(e) for e in errors[:5])}", "error")
-            
+
             return redirect(url_for("prospects_list"))
-        
+
         except Exception as e:
             logger.error("Failed to import prospects", error=str(e))
             flash(f"Error importing prospects: {str(e)}", "error")
             return redirect(url_for("import_prospects"))
-    
+
     # GET request - show upload form
     return render_template("import_prospects.html")
 
@@ -498,14 +498,14 @@ def prospect_detail(prospect_id):
     with get_session(engine) as session:
         prospect_repo = ProspectRepository(session)
         event_repo = MessageEventRepository(session)
-        
+
         prospect = prospect_repo.get_by_id(prospect_id)
         if not prospect:
             flash("Prospect not found", "error")
             return redirect(url_for("prospects_list"))
-        
+
         events = event_repo.get_by_prospect_id(prospect.id, limit=50)
-        
+
         return render_template(
             "prospect_detail.html",
             prospect=prospect,
@@ -520,7 +520,7 @@ def run_campaign():
     """Run email campaign."""
     dry_run = request.form.get("dry_run") == "true"
     prospects_file = DATA_DIR / "prospects.xlsx"
-    
+
     try:
         orchestrator = Orchestrator(
             settings=settings,
@@ -528,14 +528,14 @@ def run_campaign():
             sequences=sequences,
             dry_run=dry_run,
         )
-        
+
         summary = orchestrator.run_daily(prospects_file=prospects_file)
-        
+
         flash(
             f"Campaign completed! Sent: {summary['emails_sent']}, Failed: {summary['emails_failed']}, Replies: {summary['replies_detected']}",
             "success",
         )
-        
+
         return jsonify({"success": True, "summary": summary})
     except Exception as e:
         logger.error("Failed to run campaign", error=str(e))
@@ -554,9 +554,9 @@ def check_replies():
             sequences=sequences,
             dry_run=False,
         )
-        
+
         replies_detected = orchestrator.detect_replies()
-        
+
         flash(f"Found {replies_detected} new replies", "success")
         return jsonify({"success": True, "replies_detected": replies_detected})
     except Exception as e:
@@ -572,16 +572,16 @@ def stats():
     with get_session(engine) as session:
         prospect_repo = ProspectRepository(session)
         event_repo = MessageEventRepository(session)
-        
+
         all_prospects = prospect_repo.get_all()
         all_events = event_repo.get_all_events(limit=1000)
-        
+
         # Status distribution
         status_counts = {}
         for prospect in all_prospects:
             status = prospect.status
             status_counts[status] = status_counts.get(status, 0) + 1
-        
+
         # Event timeline (last 30 days)
         from collections import defaultdict
         events_by_date = defaultdict(int)
@@ -589,14 +589,14 @@ def stats():
             if event.occurred_at:
                 date_key = event.occurred_at.strftime("%Y-%m-%d")
                 events_by_date[date_key] += 1
-        
+
         # Conversion rates
         total = len(all_prospects)
         replied = status_counts.get(ProspectStatus.REPLIED.value, 0)
         completed = status_counts.get(ProspectStatus.COMPLETED.value, 0)
-        
+
         response_rate = (replied / total * 100) if total > 0 else 0
-        
+
         return render_template(
             "stats.html",
             status_counts=status_counts,
@@ -626,12 +626,12 @@ def resumes_page():
     """View and manage resume files."""
     from cold_emailer.attachments import list_available_resumes
     resumes_dir = WORKSPACE_ROOT / settings.paths.resumes_dir
-    
+
     # Ensure resumes directory exists
     resumes_dir.mkdir(parents=True, exist_ok=True)
-    
+
     available_resumes = list_available_resumes(resumes_dir)
-    
+
     return render_template(
         "resumes.html",
         resumes=available_resumes,
@@ -647,43 +647,43 @@ def upload_resume():
         if "file" not in request.files:
             flash("No file provided", "error")
             return redirect(url_for("resumes_page"))
-        
+
         file = request.files["file"]
         if file.filename == "":
             flash("No file selected", "error")
             return redirect(url_for("resumes_page"))
-        
+
         if not file.filename.lower().endswith(".pdf"):
             flash("Only PDF files are allowed", "error")
             return redirect(url_for("resumes_page"))
-        
+
         # Save uploaded file
         filename = secure_filename(file.filename)
         resumes_dir = WORKSPACE_ROOT / settings.paths.resumes_dir
         resumes_dir.mkdir(parents=True, exist_ok=True)
-        
+
         filepath = resumes_dir / filename
-        
+
         # Check if file already exists
         if filepath.exists():
             flash(f"Resume file '{filename}' already exists. Please rename or delete the existing file first.", "error")
             return redirect(url_for("resumes_page"))
-        
+
         file.save(str(filepath))
-        
+
         # Validate the uploaded file
         from cold_emailer.attachments import validate_resume_file
         is_valid, error_msg = validate_resume_file(filepath)
-        
+
         if not is_valid:
             # Delete invalid file
             filepath.unlink()
             flash(f"Invalid resume file: {error_msg}", "error")
             return redirect(url_for("resumes_page"))
-        
+
         flash(f"Resume '{filename}' uploaded successfully!", "success")
         return redirect(url_for("resumes_page"))
-    
+
     except Exception as e:
         logger.error("Failed to upload resume", error=str(e))
         flash(f"Error uploading resume: {str(e)}", "error")
@@ -696,35 +696,35 @@ def delete_resume(resume_id):
     """Delete a resume file."""
     try:
         resumes_dir = WORKSPACE_ROOT / settings.paths.resumes_dir
-        
+
         # Find the resume file
         from cold_emailer.attachments import find_resume_file
         is_valid, error_msg, resume_info = find_resume_file(resume_id, resumes_dir)
-        
+
         if not is_valid or not resume_info:
             flash(f"Resume file not found: {resume_id}", "error")
             return redirect(url_for("resumes_page"))
-        
+
         # Check if resume is in use by any prospect
         with get_session(engine) as session:
             prospect_repo = ProspectRepository(session)
             prospects = prospect_repo.get_all()
             prospects_using_resume = [p for p in prospects if p.resume_id == resume_id]
-            
+
             if prospects_using_resume:
                 flash(
                     f"Cannot delete resume '{resume_id}': it is being used by {len(prospects_using_resume)} prospect(s)",
                     "error"
                 )
                 return redirect(url_for("resumes_page"))
-        
+
         # Delete the file
         resume_path = Path(resume_info["absolute_path"])
         resume_path.unlink()
-        
+
         flash(f"Resume '{resume_id}' deleted successfully!", "success")
         return redirect(url_for("resumes_page"))
-    
+
     except Exception as e:
         logger.error("Failed to delete resume", resume_id=resume_id, error=str(e))
         flash(f"Error deleting resume: {str(e)}", "error")
@@ -748,38 +748,38 @@ def sequence_detail(sequence_id):
     if sequence_id not in sequences_dict:
         flash("Sequence not found", "error")
         return redirect(url_for("sequences_list"))
-    
+
     sequence = sequences_dict[sequence_id]
     sequence["id"] = sequence_id
-    
+
     # Get available templates
     templates_dir = WORKSPACE_ROOT / settings.paths.templates_dir
     available_templates = []
     if templates_dir.exists():
         for template_file in templates_dir.glob("*.md"):
             available_templates.append(template_file.stem)
-    
+
     # Load template content for each step
     steps_with_content = []
     for step in sequence.get("steps", []):
         step_data = step.copy()
         template_name = step.get("template", "")
         template_path = templates_dir / f"{template_name}.md"
-        
+
         if template_path.exists():
             try:
-                with open(template_path, "r", encoding="utf-8") as f:
+                with open(template_path, encoding="utf-8") as f:
                     step_data["template_content"] = f.read()
             except Exception as e:
                 logger.error(f"Failed to load template {template_name}", error=str(e))
                 step_data["template_content"] = f"Error loading template: {str(e)}"
         else:
             step_data["template_content"] = f"Template file not found: {template_name}.md"
-        
+
         steps_with_content.append(step_data)
-    
+
     sequence["steps_with_content"] = steps_with_content
-    
+
     return render_template(
         "sequence_detail.html",
         sequence=sequence,
@@ -797,13 +797,13 @@ def add_sequence():
     if templates_dir.exists():
         for template_file in templates_dir.glob("*.md"):
             available_templates.append(template_file.stem)
-    
+
     if request.method == "POST":
         try:
             sequence_id = request.form.get("sequence_id", "").strip().lower().replace(" ", "_")
             name = request.form.get("name", "").strip()
             description = request.form.get("description", "").strip()
-            
+
             if not sequence_id:
                 flash("Sequence ID is required", "error")
                 return render_template("add_sequence.html", available_templates=available_templates)
@@ -813,17 +813,17 @@ def add_sequence():
             if sequence_id in sequences:
                 flash(f"Sequence ID '{sequence_id}' already exists", "error")
                 return render_template("add_sequence.html", available_templates=available_templates)
-            
+
             # Parse steps from form
             steps = []
             step_count = int(request.form.get("step_count", 0))
-            
+
             for i in range(step_count):
                 step_num = request.form.get(f"step_{i}_num", "")
                 template = request.form.get(f"step_{i}_template", "")
                 wait_days = request.form.get(f"step_{i}_wait_days", "0")
                 subject = request.form.get(f"step_{i}_subject", "")
-                
+
                 if step_num and template:
                     try:
                         steps.append({
@@ -834,38 +834,38 @@ def add_sequence():
                         })
                     except ValueError:
                         continue
-            
+
             if not steps:
                 flash("At least one step is required", "error")
                 return render_template("add_sequence.html", available_templates=available_templates)
-            
+
             # Load existing sequences
             sequences_path = CONFIG_DIR / "sequences.yaml"
-            with open(sequences_path, "r") as f:
+            with open(sequences_path) as f:
                 sequences_data = yaml.safe_load(f) or {}
-            
+
             # Add new sequence
             sequences_data.setdefault("sequences", {})[sequence_id] = {
                 "name": name,
                 "description": description,
                 "steps": sorted(steps, key=lambda x: x["step"]),
             }
-            
+
             # Save to file
             with open(sequences_path, "w") as f:
                 yaml.dump(sequences_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
-            
+
             # Reload sequences
             reload_sequences()
-            
+
             flash(f"Sequence '{name}' added successfully!", "success")
             return redirect(url_for("sequences_list"))
-        
+
         except Exception as e:
             logger.error("Failed to add sequence", error=str(e))
             flash(f"Error adding sequence: {str(e)}", "error")
             return render_template("add_sequence.html", available_templates=available_templates)
-    
+
     return render_template("add_sequence.html", available_templates=available_templates)
 
 
@@ -876,33 +876,33 @@ def edit_sequence(sequence_id):
     if sequence_id not in sequences_dict:
         flash("Sequence not found", "error")
         return redirect(url_for("sequences_list"))
-    
+
     templates_dir = WORKSPACE_ROOT / settings.paths.templates_dir
     available_templates = []
     if templates_dir.exists():
         for template_file in templates_dir.glob("*.md"):
             available_templates.append(template_file.stem)
-    
+
     if request.method == "POST":
         try:
             name = request.form.get("name", "").strip()
             description = request.form.get("description", "").strip()
-            
+
             if not name:
                 flash("Sequence name is required", "error")
                 return redirect(url_for("edit_sequence", sequence_id=sequence_id))
-            
+
             # Parse steps from form
             steps = []
             step_count = int(request.form.get("step_count", 0))
-            
+
             for i in range(step_count):
                 step_num = request.form.get(f"step_{i}_num", "")
                 template = request.form.get(f"step_{i}_template", "")
                 wait_days = request.form.get(f"step_{i}_wait_days", "0")
                 subject = request.form.get(f"step_{i}_subject", "")
                 template_content = request.form.get(f"step_{i}_content", "")
-                
+
                 if step_num and template:
                     try:
                         steps.append({
@@ -911,7 +911,7 @@ def edit_sequence(sequence_id):
                             "wait_days": int(wait_days) if wait_days else 0,
                             "subject": subject,
                         })
-                        
+
                         # Save template content to file
                         if template_content:
                             template_path = templates_dir / f"{template}.md"
@@ -921,66 +921,66 @@ def edit_sequence(sequence_id):
                                 logger.info(f"Updated template file: {template}.md")
                             except Exception as e:
                                 logger.error(f"Failed to save template {template}", error=str(e))
-                        
+
                     except ValueError:
                         continue
-            
+
             if not steps:
                 flash("At least one step is required", "error")
                 return redirect(url_for("edit_sequence", sequence_id=sequence_id))
-            
+
             # Load existing sequences
             sequences_path = CONFIG_DIR / "sequences.yaml"
             import yaml
-            with open(sequences_path, "r") as f:
+            with open(sequences_path) as f:
                 sequences_data = yaml.safe_load(f) or {}
-            
+
             # Update sequence
             sequences_data.setdefault("sequences", {})[sequence_id] = {
                 "name": name,
                 "description": description,
                 "steps": sorted(steps, key=lambda x: x["step"]),
             }
-            
+
             # Save to file
             with open(sequences_path, "w") as f:
                 yaml.dump(sequences_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
-            
+
             # Reload sequences
             reload_sequences()
-            
+
             flash(f"Sequence '{name}' updated successfully!", "success")
             return redirect(url_for("sequences_list"))
-        
+
         except Exception as e:
             logger.error("Failed to update sequence", error=str(e))
             flash(f"Error updating sequence: {str(e)}", "error")
             return redirect(url_for("edit_sequence", sequence_id=sequence_id))
-    
+
     sequence = sequences_dict[sequence_id]
     sequence["id"] = sequence_id
-    
+
     # Load template content for each step
     steps_with_content = []
     for step in sequence.get("steps", []):
         step_data = step.copy()
         template_name = step.get("template", "")
         template_path = templates_dir / f"{template_name}.md"
-        
+
         if template_path.exists():
             try:
-                with open(template_path, "r", encoding="utf-8") as f:
+                with open(template_path, encoding="utf-8") as f:
                     step_data["template_content"] = f.read()
             except Exception as e:
                 logger.error(f"Failed to load template {template_name}", error=str(e))
                 step_data["template_content"] = ""
         else:
             step_data["template_content"] = ""
-        
+
         steps_with_content.append(step_data)
-    
+
     sequence["steps_with_content"] = steps_with_content
-    
+
     return render_template(
         "edit_sequence.html",
         sequence=sequence,
@@ -994,50 +994,50 @@ def format_datetime(value):
     """Format datetime for display in Chicago timezone."""
     if value is None:
         return "N/A"
-    
+
     # Handle Unix timestamp (int or float)
-    if isinstance(value, (int, float)):
-        value = datetime.fromtimestamp(value, tz=timezone.utc)
+    if isinstance(value, int | float):
+        value = datetime.fromtimestamp(value, tz=UTC)
     elif isinstance(value, str):
         try:
             value = datetime.fromisoformat(value)
         except Exception:
             return value
-    
+
     # Get Chicago timezone (UTC-6 or UTC-5 depending on DST)
     if ZoneInfo:
         chicago_tz = ZoneInfo("America/Chicago")
     else:
         # Fallback: Use fixed UTC-6 offset (CST)
         chicago_tz = timezone(timedelta(hours=-6))
-    
+
     # Assume UTC if datetime is naive, otherwise use its timezone
     if value.tzinfo is None:
         # Naive datetime - assume it's UTC
         if ZoneInfo:
             value = value.replace(tzinfo=ZoneInfo("UTC"))
         else:
-            value = value.replace(tzinfo=timezone.utc)
-    
+            value = value.replace(tzinfo=UTC)
+
     # Convert to Chicago timezone
     local_time = value.astimezone(chicago_tz)
-    
+
     return local_time.strftime("%Y-%m-%d %H:%M:%S %Z")
 @app.template_filter("timesince")
 def time_since(value):
     """Human-readable time since in Chicago timezone."""
     if value is None:
         return "Never"
-    
+
     # Handle Unix timestamp (int or float)
-    if isinstance(value, (int, float)):
-        value = datetime.fromtimestamp(value, tz=timezone.utc)
+    if isinstance(value, int | float):
+        value = datetime.fromtimestamp(value, tz=UTC)
     elif isinstance(value, str):
         try:
             value = datetime.fromisoformat(value)
         except Exception:
             return value
-    
+
     # Get Chicago timezone
     if ZoneInfo:
         chicago_tz = ZoneInfo("America/Chicago")
@@ -1045,19 +1045,19 @@ def time_since(value):
     else:
         # Fallback: Use fixed UTC-6 offset (CST)
         chicago_tz = timezone(timedelta(hours=-6))
-        utc_tz = timezone.utc
-    
+        utc_tz = UTC
+
     # Assume UTC if datetime is naive, otherwise use its timezone
     if value.tzinfo is None:
         # Naive datetime - assume it's UTC
         value = value.replace(tzinfo=utc_tz)
-    
+
     # Convert to Chicago timezone for comparison
     local_value = value.astimezone(chicago_tz)
     now = datetime.now(chicago_tz)
-    
+
     diff = now - local_value
-    
+
     if diff.days > 0:
         return f"{diff.days} day{'s' if diff.days != 1 else ''} ago"
     elif diff.seconds > 3600:
@@ -1088,11 +1088,11 @@ def main():
         if os.environ.get("DOCKER_CONTAINER") != "true":
             import sys
             sys.exit(1)
-    
+
     # Get port from environment or default to 5000
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_ENV", "production") == "development"
-    
+
     print("\n" + "="*60)
     print("🚀 Cold Email Campaign Manager - Web Interface")
     print("="*60)
@@ -1104,7 +1104,7 @@ def main():
     else:
         print("⚠️  Environment validation failed - email features may not work")
     print("\n💡 Press Ctrl+C to stop the server\n")
-    
+
     app.run(debug=debug, host="0.0.0.0", port=port)
 
 

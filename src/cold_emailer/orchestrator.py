@@ -5,12 +5,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from cold_emailer.composer import EmailComposer, create_composer_from_config
-from cold_emailer.config import EnvSettings, load_config, load_sequences
+from cold_emailer.composer import create_composer_from_config
+from cold_emailer.config import EnvSettings
 from cold_emailer.export import export_prospects_to_excel
 from cold_emailer.ingestion import ingest_prospects
-from cold_emailer.mailer.imap_reply_detector import ReplyDetector, create_reply_detector_from_config
-from cold_emailer.mailer.smtp_sender import SMTPSender, create_smtp_sender_from_config
+from cold_emailer.mailer.imap_reply_detector import create_reply_detector_from_config
+from cold_emailer.mailer.smtp_sender import create_smtp_sender_from_config
 from cold_emailer.state_store.db import create_database_engine, get_session, init_database
 from cold_emailer.state_store.models import MessageEventType, ProspectStatus
 from cold_emailer.state_store.repo import MessageEventRepository, ProspectRepository
@@ -99,10 +99,10 @@ class Orchestrator:
     def _calculate_next_action_time(self, sequence_id: str) -> datetime | None:
         """
         Calculate next_action_at based on sequence configuration.
-        
+
         Args:
             sequence_id: ID of the sequence
-            
+
         Returns:
             datetime object for next action, or None for immediate sending
         """
@@ -110,34 +110,34 @@ class Orchestrator:
         sequences_dict = self.sequences.get("sequences", {})
         sequence_config = sequences_dict.get(sequence_id, {})
         schedule_time = sequence_config.get("schedule_initial_at")
-        
+
         if not schedule_time:
             # No scheduling configured, send immediately (when campaign runs)
             return None
-        
+
         try:
             # Parse the time string (HH:MM format)
             hours, minutes = map(int, schedule_time.split(":"))
-            
+
             # Get current time
             now = datetime.now()
-            
+
             # Create scheduled datetime for today at specified time
             scheduled_time = now.replace(hour=hours, minute=minutes, second=0, microsecond=0)
-            
+
             # If the time has already passed today, schedule for tomorrow
             if scheduled_time <= now:
                 scheduled_time += timedelta(days=1)
-            
+
             logger.info(
                 "Calculated next action time",
                 sequence_id=sequence_id,
                 schedule_time=schedule_time,
                 next_action_at=scheduled_time.isoformat()
             )
-            
+
             return scheduled_time
-            
+
         except Exception as e:
             logger.error(
                 "Failed to parse schedule_initial_at",
@@ -163,10 +163,10 @@ class Orchestrator:
         """
         # Ensure database is initialized
         init_database(self.engine)
-        
+
         # Get resumes directory from settings
         resumes_dir = Path(self.settings.paths.resumes_dir)
-        
+
         with get_session(self.engine) as session:
             repo = ProspectRepository(session)
             created, updated, errors = ingest_prospects(
@@ -175,7 +175,7 @@ class Orchestrator:
                 repo=repo,
                 reset_state=reset_state,
             )
-            
+
             # Set next_action_at for NEW prospects based on sequence configuration
             all_prospects = repo.get_all()
             scheduled_count = 0
@@ -186,14 +186,14 @@ class Orchestrator:
                     if next_action_at:
                         prospect.next_action_at = next_action_at
                         scheduled_count += 1
-            
+
             if scheduled_count > 0:
                 session.commit()
                 logger.info(
                     "Scheduled NEW prospects based on sequence configuration",
                     scheduled_count=scheduled_count
                 )
-            
+
             return created, updated, errors
 
     def detect_replies(self) -> int:
@@ -206,7 +206,7 @@ class Orchestrator:
         if self.dry_run:
             logger.info("Reply detection skipped (dry-run mode)")
             return 0
-        
+
         if not self.reply_detector:
             logger.info("Reply detection skipped (IMAP not configured)")
             return 0
@@ -298,13 +298,13 @@ class Orchestrator:
             # Additional check: Detect replies by email address for ALL active prospects
             # This catches replies even if Message-ID matching fails
             all_active_prospects = [
-                p for p in prospect_repo.get_all() 
+                p for p in prospect_repo.get_all()
                 if not p.is_terminal_status() and p.email
             ]
-            
+
             # Get unique prospect emails
-            prospect_emails = list(set([p.email for p in all_active_prospects]))
-            
+            prospect_emails = list({p.email for p in all_active_prospects})
+
             if prospect_emails:
                 # Check for replies from any prospect email
                 for prospect_email in prospect_emails:
@@ -312,7 +312,7 @@ class Orchestrator:
                     prospects_for_email = [p for p in all_active_prospects if p.email == prospect_email]
                     if not prospects_for_email:
                         continue
-                    
+
                     # Get last sent subject for any of these prospects
                     last_subject = None
                     for p in prospects_for_email:
@@ -320,21 +320,21 @@ class Orchestrator:
                         if events and events[0].subject:
                             last_subject = events[0].subject
                             break
-                    
+
                     if last_subject:
                         # Check for replies from this email address
                         email_replies = self.reply_detector.detect_reply_fallback(
                             prospect_email=prospect_email,
                             original_subject=last_subject,
                         )
-                        
+
                         if email_replies:
                             # Mark all prospects with this email as REPLIED
                             for prospect in prospects_for_email:
                                 if prospect.status != ProspectStatus.REPLIED.value:
                                     prospect_repo.update_status(prospect.id, ProspectStatus.REPLIED)
                                     prospect_repo.update_next_action(prospect.id, None)
-                                    
+
                                     # Log reply event
                                     for reply_info in email_replies:
                                         event_repo.create(
@@ -346,7 +346,7 @@ class Orchestrator:
                                             }
                                         )
                                     replies_detected += len(email_replies)
-                                    
+
                                     logger.info(
                                         "Reply detected by email address",
                                         prospect_id=str(prospect.id),
@@ -407,10 +407,10 @@ class Orchestrator:
                 )
 
                 # Validate resume attachment
-                from cold_emailer.attachments import validate_resume_file, find_resume_file
+                from cold_emailer.attachments import find_resume_file, validate_resume_file
 
                 resume_path = Path(prospect.resume_path) if prospect.resume_path else None
-                
+
                 # If resume_path is not set, try to find it by resume_id
                 if not resume_path and prospect.resume_id:
                     resumes_dir = Path(self.settings.paths.resumes_dir)
@@ -432,7 +432,7 @@ class Orchestrator:
                             resume_id=prospect.resume_id,
                             error=error_msg,
                         )
-                
+
                 if resume_path:
                     is_valid, error = validate_resume_file(resume_path, prospect.resume_sha256)
                     if not is_valid:
@@ -494,7 +494,7 @@ class Orchestrator:
                         resume_filename = f"Resume-{display_name.replace(' ', '_')}.pdf"
                     else:
                         resume_filename = display_name
-                    
+
                     success, sent_message_id, attachment_sha256, error = (
                         self.smtp_sender.send_with_attachment(
                             msg=msg,
@@ -543,7 +543,7 @@ class Orchestrator:
                                 prospect = session.get(type(prospect), prospect.id)
                                 if prospect:
                                     prospect.thread_key = sent_message_id
-                        
+
                         # Flush changes to ensure they're persisted
                         session.flush()
 
@@ -731,11 +731,11 @@ class Orchestrator:
                     export_repo = ProspectRepository(export_session)
                     all_prospects = export_repo.get_all()
                     terminal_prospects = [
-                        p for p in all_prospects 
+                        p for p in all_prospects
                         if p.status in [ProspectStatus.REPLIED.value, ProspectStatus.COMPLETED.value]
                     ]
                 # Session is now closed, safe to write to Excel
-                
+
                 if terminal_prospects:
                     export_prospects_to_excel(
                         prospects=terminal_prospects,

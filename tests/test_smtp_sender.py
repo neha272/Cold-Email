@@ -5,7 +5,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from cold_emailer.mailer.smtp_sender import SMTPConfig, SMTPSender
 
 

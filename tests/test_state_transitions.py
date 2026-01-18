@@ -1,15 +1,13 @@
 """Tests for state transitions."""
 
-import uuid
 from datetime import datetime, timedelta
 
 import pytest
+from cold_emailer.state_store.db import get_session_factory, init_database
+from cold_emailer.state_store.models import MessageEventType, ProspectStatus
+from cold_emailer.state_store.repo import MessageEventRepository, ProspectRepository
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-
-from cold_emailer.state_store.db import get_session_factory, init_database
-from cold_emailer.state_store.models import MessageEvent, MessageEventType, Prospect, ProspectStatus
-from cold_emailer.state_store.repo import MessageEventRepository, ProspectRepository
 
 
 @pytest.fixture
@@ -141,7 +139,7 @@ def test_get_due_prospects(db_session: Session) -> None:
     )
 
     # Create prospect with future next_action_at
-    future_prospect = repo.create(
+    repo.create(
         {
             "email": "future@example.com",
             "full_name": "Future User",
@@ -153,7 +151,7 @@ def test_get_due_prospects(db_session: Session) -> None:
     )
 
     # Create prospect with terminal status
-    terminal_prospect = repo.create(
+    repo.create(
         {
             "email": "terminal@example.com",
             "full_name": "Terminal User",

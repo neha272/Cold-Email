@@ -1,11 +1,10 @@
 """CLI interface for cold-emailer."""
 
 import json
-from datetime import datetime
 from pathlib import Path
+from typing import Annotated
 
 import typer
-from typing_extensions import Annotated
 
 from cold_emailer.config import EnvSettings, load_config, load_sequences
 from cold_emailer.export import export_prospects_to_excel
@@ -74,7 +73,7 @@ def ingest(
     if not file.exists():
         typer.echo(f"✗ Error: File not found: {file}", err=True)
         raise typer.Exit(1)
-    
+
     logger.info("Ingesting prospects", file=str(file), command="ingest")
     try:
         settings = load_config(str(config))
@@ -94,7 +93,7 @@ def ingest(
                 reset_state=reset_state,
             )
 
-            typer.echo(f"\n✓ Ingestion complete:")
+            typer.echo("\n✓ Ingestion complete:")
             typer.echo(f"  Created: {created}")
             typer.echo(f"  Updated: {updated}")
             if errors:
@@ -138,7 +137,7 @@ def run(
     if not file.exists():
         typer.echo(f"✗ Error: File not found: {file}", err=True)
         raise typer.Exit(1)
-    
+
     # Fix boolean flag handling
     # Typer boolean flags: presence of flag = True, absence = False
     # But sometimes Typer doesn't properly set the value, so we check sys.argv as fallback
@@ -148,7 +147,7 @@ def run(
     # Use sys.argv check as primary source of truth since Typer flag isn't working reliably
     actual_dry_run = has_dry_run_flag
     actual_confirm_send = bool(confirm_send) if confirm_send is not None else False
-    
+
     logger.info(
         "Running automation",
         file=str(file),
@@ -185,21 +184,21 @@ def run(
         typer.echo("=" * 60)
         # Use the actual dry_run value from CLI
         typer.echo(f"Mode: {'DRY RUN' if actual_dry_run else 'LIVE'}")
-        typer.echo(f"\nIngestion:")
+        typer.echo("\nIngestion:")
         typer.echo(f"  Created: {summary['ingested']['created']}")
         typer.echo(f"  Updated: {summary['ingested']['updated']}")
         if summary["ingested"]["errors"]:
             typer.echo(f"  Errors: {len(summary['ingested']['errors'])}")
 
         typer.echo(f"\nReplies Detected: {summary['replies_detected']}")
-        typer.echo(f"\nEmails:")
+        typer.echo("\nEmails:")
         typer.echo(f"  Sent: {summary['emails_sent']}")
         typer.echo(f"  Failed: {summary['emails_failed']}")
         if summary["throttled"] > 0:
             typer.echo(f"  Throttled: {summary['throttled']}")
-        
+
         if "exported" in summary:
-            typer.echo(f"\nExported to Excel:")
+            typer.echo("\nExported to Excel:")
             typer.echo(f"  RESPONSE sheet: {summary['exported']['replied']}")
             typer.echo(f"  NO RESPONSE sheet: {summary['exported']['completed']}")
 
@@ -381,7 +380,7 @@ def export_prospects(
 
         with get_session(engine) as session:
             repo = ProspectRepository(session)
-            
+
             # Get prospects based on filter
             if status_filter:
                 prospects = repo.get_by_status(status_filter)
@@ -390,18 +389,18 @@ def export_prospects(
                 replied = repo.get_by_status(ProspectStatus.REPLIED)
                 completed = repo.get_by_status(ProspectStatus.COMPLETED)
                 prospects = replied + completed
-            
+
             if not prospects:
                 typer.echo("No prospects found to export.")
                 return
-            
+
             # Export to Excel
             export_prospects_to_excel(prospects, out, preserve_existing=True)
-            
+
             # Count by category
             replied_count = sum(1 for p in prospects if p.status == ProspectStatus.REPLIED.value)
             completed_count = sum(1 for p in prospects if p.status == ProspectStatus.COMPLETED.value)
-            
+
             typer.echo(f"\n✓ Exported {len(prospects)} prospects to {out}")
             typer.echo(f"  RESPONSE tab: {replied_count} prospects")
             typer.echo(f"  NO RESPONSE tab: {completed_count} prospects")
@@ -436,7 +435,7 @@ def check_replies(
         settings = load_config(str(config))
         sequences = load_sequences()
         env_settings = EnvSettings()
-        
+
         # Create orchestrator (not in dry-run mode for reply detection)
         orchestrator = Orchestrator(
             settings=settings,
@@ -444,19 +443,19 @@ def check_replies(
             sequences=sequences,
             dry_run=False,  # Must be False to detect replies
         )
-        
+
         replies_detected = orchestrator.detect_replies()
-        
-        typer.echo(f"\n✓ Reply check complete")
+
+        typer.echo("\n✓ Reply check complete")
         typer.echo(f"  Replies detected: {replies_detected}")
-        
+
         if replies_detected > 0:
             typer.echo(f"\n  ✓ {replies_detected} prospect(s) marked as REPLIED")
-            typer.echo(f"  These prospects will no longer receive follow-up emails.")
+            typer.echo("  These prospects will no longer receive follow-up emails.")
         else:
-            typer.echo(f"\n  No new replies detected.")
-            typer.echo(f"  Note: Make sure IMAP is configured in .env file")
-        
+            typer.echo("\n  No new replies detected.")
+            typer.echo("  Note: Make sure IMAP is configured in .env file")
+
     except Exception as e:
         logger.error("Failed to check replies", error=str(e))
         typer.echo(f"✗ Error: {e}", err=True)

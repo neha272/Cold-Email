@@ -1,17 +1,14 @@
 """Tests for prospect ingestion."""
 
 import csv
-import tempfile
 from pathlib import Path
 
 import pytest
-
 from cold_emailer.attachments import ResumeManifest, compute_sha256, validate_resume_file
 from cold_emailer.ingestion import (
     generate_prospect_id,
     ingest_prospects,
     parse_csv,
-    parse_excel,
     validate_email,
 )
 from cold_emailer.state_store.repo import ProspectRepository

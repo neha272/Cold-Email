@@ -1,10 +1,8 @@
 """Tests for email composition."""
 
-import tempfile
 from pathlib import Path
 
 import pytest
-
 from cold_emailer.composer import EmailComposer
 
 

@@ -1,12 +1,9 @@
 """Tests for orchestrator dry-run mode."""
 
-import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
-
 from cold_emailer.attachments import ResumeManifest
 from cold_emailer.config import DatabaseSettings, EmailSettings, PathsSettings, Settings
 from cold_emailer.orchestrator import Orchestrator
@@ -106,7 +103,7 @@ def test_get_due_prospects(test_settings: Settings, test_env_settings: "EnvSetti
     from cold_emailer.state_store.db import init_database
 
     init_database(orchestrator.engine)
-    with orchestrator.engine.connect() as conn:
+    with orchestrator.engine.connect():
         from cold_emailer.state_store.models import Base
 
         Base.metadata.create_all(orchestrator.engine)
@@ -116,7 +113,7 @@ def test_get_due_prospects(test_settings: Settings, test_env_settings: "EnvSetti
 
         session_obj = Session(bind=session)
         repo = ProspectRepository(session_obj)
-        prospect = repo.create(
+        repo.create(
             {
                 "email": "test@example.com",
                 "full_name": "Test User",
@@ -157,7 +154,7 @@ def test_send_email_dry_run(
     from cold_emailer.state_store.db import init_database
 
     init_database(orchestrator.engine)
-    with orchestrator.engine.connect() as conn:
+    with orchestrator.engine.connect():
         from cold_emailer.state_store.models import Base
 
         Base.metadata.create_all(orchestrator.engine)
@@ -224,7 +221,7 @@ def test_run_daily_dry_run(
     from cold_emailer.state_store.db import init_database
 
     init_database(orchestrator.engine)
-    with orchestrator.engine.connect() as conn:
+    with orchestrator.engine.connect():
         from cold_emailer.state_store.models import Base
 
         Base.metadata.create_all(orchestrator.engine)

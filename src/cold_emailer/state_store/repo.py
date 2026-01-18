@@ -107,7 +107,7 @@ class ProspectRepository:
             ProspectStatus.UNSUBSCRIBED.value,
             ProspectStatus.COMPLETED.value,
         ]
-        
+
         query = (
             self.session.query(Prospect)
             .filter(
@@ -228,7 +228,7 @@ class ProspectRepository:
         if sent_at is None:
             from datetime import datetime
             sent_at = datetime.utcnow()
-        
+
         prospect.last_sent_at = sent_at
         return prospect
 

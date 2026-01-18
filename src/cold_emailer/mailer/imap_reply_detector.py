@@ -2,7 +2,7 @@
 
 import email
 import imaplib
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 from cold_emailer.utils import get_logger

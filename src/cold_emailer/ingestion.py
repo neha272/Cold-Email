@@ -1,7 +1,6 @@
 """Prospect ingestion from CSV/Excel files."""
 
 import csv
-import json
 import uuid
 from pathlib import Path
 from typing import Any
@@ -68,7 +67,7 @@ def parse_csv(file_path: Path) -> list[dict[str, Any]]:
     prospects: list[dict[str, Any]] = []
     required_columns = {"email", "full_name", "company", "resume_id"}
 
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(file_path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         headers = reader.fieldnames or []
 
@@ -153,11 +152,11 @@ def parse_excel(file_path: Path) -> list[dict[str, Any]]:
 
     workbook = load_workbook(file_path, read_only=True, data_only=True)
     sheet_names = workbook.sheetnames
-    
+
     # Only read from the main prospects sheet (NOT from NO RESPONSE or RESPONSE)
     # Terminal sheets (NO RESPONSE, RESPONSE) are for archival purposes only
     sheets_to_read = []
-    
+
     # Try to find main prospects sheet by common names
     main_sheet_names = ["Prospects", "Sheet1", "Sheet"]
     for sheet_name in main_sheet_names:
@@ -165,19 +164,19 @@ def parse_excel(file_path: Path) -> list[dict[str, Any]]:
             sheets_to_read.append(workbook[sheet_name])
             logger.info(f"Reading prospects from '{sheet_name}' sheet")
             break
-    
+
     # If no standard sheet found, use active sheet if it's not a terminal sheet
     if not sheets_to_read:
         active_sheet = workbook.active
         if active_sheet.title not in ["NO RESPONSE", "RESPONSE"]:
             sheets_to_read.append(active_sheet)
             logger.info(f"Reading prospects from active sheet '{active_sheet.title}'")
-    
+
     # If still no sheets to read, use active sheet as fallback
     if not sheets_to_read:
         sheets_to_read = [workbook.active]
         logger.warning(f"No main sheet found, using active sheet '{workbook.active.title}'")
-    
+
     # Parse each sheet
     for sheet in sheets_to_read:
 

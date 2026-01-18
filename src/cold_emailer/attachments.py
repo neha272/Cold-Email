@@ -77,6 +77,44 @@ def validate_resume_file(
     return True, None
 
 
+def list_available_resumes(resumes_dir: Path) -> list[dict[str, Any]]:
+    """
+    List all available resume files in the resumes directory.
+    
+    Args:
+        resumes_dir: Directory containing resume PDF files
+        
+    Returns:
+        List of dictionaries with resume info (filename, size, modified_time)
+    """
+    resumes = []
+    
+    if not resumes_dir.exists() or not resumes_dir.is_dir():
+        logger.warning("Resumes directory not found", path=str(resumes_dir))
+        return resumes
+    
+    for file_path in resumes_dir.glob("*.pdf"):
+        if file_path.is_file():
+            stat = file_path.stat()
+            # Get filename without extension
+            resume_id = file_path.stem
+            
+            resumes.append({
+                "resume_id": resume_id,
+                "filename": file_path.name,
+                "size_bytes": stat.st_size,
+                "size_mb": round(stat.st_size / (1024 * 1024), 2),
+                "modified_time": stat.st_mtime,
+                "path": str(file_path),
+            })
+    
+    # Sort by modified time (newest first)
+    resumes.sort(key=lambda x: x["modified_time"], reverse=True)
+    
+    logger.info("Listed available resumes", count=len(resumes))
+    return resumes
+
+
 def find_resume_file(resume_id: str, resumes_dir: Path) -> tuple[bool, str | None, dict[str, Any] | None]:
     """
     Find resume file by ID in the resumes directory.

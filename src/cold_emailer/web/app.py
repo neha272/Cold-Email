@@ -154,6 +154,11 @@ def prospects_list():
 @app.route("/prospects/add", methods=["GET", "POST"])
 def add_prospect():
     """Add a new prospect."""
+    # Get available resumes
+    from cold_emailer.attachments import list_available_resumes
+    resumes_dir = WORKSPACE_ROOT / settings.paths.resumes_dir
+    available_resumes = list_available_resumes(resumes_dir)
+    
     if request.method == "POST":
         try:
             with get_session(engine) as session:
@@ -173,34 +178,33 @@ def add_prospect():
                 # Validate required fields
                 if not prospect_data["email"]:
                     flash("Email is required", "error")
-                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict)
+                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict, resumes=available_resumes)
                 if not prospect_data["full_name"]:
                     flash("Full name is required", "error")
-                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict)
+                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict, resumes=available_resumes)
                 if not prospect_data["company"]:
                     flash("Company is required", "error")
-                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict)
+                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict, resumes=available_resumes)
                 if not prospect_data["resume_id"]:
                     flash("Resume ID is required", "error")
-                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict)
+                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict, resumes=available_resumes)
                 
                 # Check if prospect already exists
                 existing = prospect_repo.get_by_email(prospect_data["email"])
                 if existing:
                     flash(f"Prospect with email {prospect_data['email']} already exists", "error")
-                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict)
+                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict, resumes=available_resumes)
                 
                 # Validate resume file exists
                 from cold_emailer.attachments import find_resume_file
-                resumes_dir = WORKSPACE_ROOT / settings.paths.resumes_dir
                 is_valid, error_msg, resume_info = find_resume_file(prospect_data["resume_id"], resumes_dir)
                 if not is_valid:
                     flash(f"Resume file not found: {error_msg or prospect_data['resume_id']}", "error")
-                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict)
+                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict, resumes=available_resumes)
                 
                 if not resume_info:
                     flash(f"Resume info not found: {prospect_data['resume_id']}", "error")
-                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict)
+                    return render_template("add_prospect.html", prospect=prospect_data, sequences=sequences_dict, resumes=available_resumes)
                 
                 prospect_data["resume_path"] = str(resume_info.get("absolute_path"))
                 prospect_data["resume_sha256"] = resume_info.get("sha256")
@@ -217,15 +221,20 @@ def add_prospect():
         except Exception as e:
             logger.error("Failed to add prospect", error=str(e))
             flash(f"Error adding prospect: {str(e)}", "error")
-            return render_template("add_prospect.html", prospect=request.form.to_dict(), sequences=sequences_dict)
+            return render_template("add_prospect.html", prospect=request.form.to_dict(), sequences=sequences_dict, resumes=available_resumes)
     
     # GET request - show form
-    return render_template("add_prospect.html", prospect={}, sequences=sequences_dict)
+    return render_template("add_prospect.html", prospect={}, sequences=sequences_dict, resumes=available_resumes)
 
 
 @app.route("/prospects/<prospect_id>/edit", methods=["GET", "POST"])
 def edit_prospect(prospect_id):
     """Edit an existing prospect."""
+    # Get available resumes
+    from cold_emailer.attachments import list_available_resumes
+    resumes_dir = WORKSPACE_ROOT / settings.paths.resumes_dir
+    available_resumes = list_available_resumes(resumes_dir)
+    
     with get_session(engine) as session:
         prospect_repo = ProspectRepository(session)
         prospect = prospect_repo.get_by_id(prospect_id)
@@ -250,25 +259,24 @@ def edit_prospect(prospect_id):
                 # Validate required fields
                 if not prospect_data["email"]:
                     flash("Email is required", "error")
-                    return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences_dict)
+                    return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences_dict, resumes=available_resumes)
                 if not prospect_data["full_name"]:
                     flash("Full name is required", "error")
-                    return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences_dict)
+                    return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences_dict, resumes=available_resumes)
                 if not prospect_data["company"]:
                     flash("Company is required", "error")
-                    return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences_dict)
+                    return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences_dict, resumes=available_resumes)
                 if not prospect_data["resume_id"]:
                     flash("Resume ID is required", "error")
-                    return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences_dict)
+                    return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences_dict, resumes=available_resumes)
                 
                 # Update resume if changed
                 if prospect_data["resume_id"] != prospect.resume_id:
                     from cold_emailer.attachments import find_resume_file
-                    resumes_dir = WORKSPACE_ROOT / settings.paths.resumes_dir
                     is_valid, resume_path, resume_info = find_resume_file(prospect_data["resume_id"], resumes_dir)
                     if not is_valid:
                         flash(f"Resume file not found: {prospect_data['resume_id']}", "error")
-                        return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences_dict)
+                        return render_template("edit_prospect.html", prospect=prospect, prospect_data=prospect_data, sequences=sequences_dict, resumes=available_resumes)
                     prospect_data["resume_path"] = str(resume_path)
                     prospect_data["resume_sha256"] = resume_info.get("sha256") if resume_info else None
                 
@@ -291,10 +299,10 @@ def edit_prospect(prospect_id):
             except Exception as e:
                 logger.error("Failed to update prospect", error=str(e))
                 flash(f"Error updating prospect: {str(e)}", "error")
-                return render_template("edit_prospect.html", prospect=prospect, prospect_data=request.form.to_dict(), sequences=sequences_dict)
+                return render_template("edit_prospect.html", prospect=prospect, prospect_data=request.form.to_dict(), sequences=sequences_dict, resumes=available_resumes)
         
         # GET request - show form
-        return render_template("edit_prospect.html", prospect=prospect, prospect_data={}, sequences=sequences_dict)
+        return render_template("edit_prospect.html", prospect=prospect, prospect_data={}, sequences=sequences_dict, resumes=available_resumes)
 
 
 @app.route("/prospects/import", methods=["GET", "POST"])
@@ -470,6 +478,114 @@ def settings_page():
         env_settings=env_settings,
         sequences=sequences_dict,
     )
+
+
+@app.route("/resumes")
+def resumes_page():
+    """View and manage resume files."""
+    from cold_emailer.attachments import list_available_resumes
+    resumes_dir = WORKSPACE_ROOT / settings.paths.resumes_dir
+    
+    # Ensure resumes directory exists
+    resumes_dir.mkdir(parents=True, exist_ok=True)
+    
+    available_resumes = list_available_resumes(resumes_dir)
+    
+    return render_template(
+        "resumes.html",
+        resumes=available_resumes,
+        resumes_dir=str(resumes_dir),
+    )
+
+
+@app.route("/resumes/upload", methods=["POST"])
+def upload_resume():
+    """Upload a new resume file."""
+    try:
+        if "file" not in request.files:
+            flash("No file provided", "error")
+            return redirect(url_for("resumes_page"))
+        
+        file = request.files["file"]
+        if file.filename == "":
+            flash("No file selected", "error")
+            return redirect(url_for("resumes_page"))
+        
+        if not file.filename.lower().endswith(".pdf"):
+            flash("Only PDF files are allowed", "error")
+            return redirect(url_for("resumes_page"))
+        
+        # Save uploaded file
+        filename = secure_filename(file.filename)
+        resumes_dir = WORKSPACE_ROOT / settings.paths.resumes_dir
+        resumes_dir.mkdir(parents=True, exist_ok=True)
+        
+        filepath = resumes_dir / filename
+        
+        # Check if file already exists
+        if filepath.exists():
+            flash(f"Resume file '{filename}' already exists. Please rename or delete the existing file first.", "error")
+            return redirect(url_for("resumes_page"))
+        
+        file.save(str(filepath))
+        
+        # Validate the uploaded file
+        from cold_emailer.attachments import validate_resume_file
+        is_valid, error_msg = validate_resume_file(filepath)
+        
+        if not is_valid:
+            # Delete invalid file
+            filepath.unlink()
+            flash(f"Invalid resume file: {error_msg}", "error")
+            return redirect(url_for("resumes_page"))
+        
+        flash(f"Resume '{filename}' uploaded successfully!", "success")
+        return redirect(url_for("resumes_page"))
+    
+    except Exception as e:
+        logger.error("Failed to upload resume", error=str(e))
+        flash(f"Error uploading resume: {str(e)}", "error")
+        return redirect(url_for("resumes_page"))
+
+
+@app.route("/resumes/<resume_id>/delete", methods=["POST"])
+def delete_resume(resume_id):
+    """Delete a resume file."""
+    try:
+        resumes_dir = WORKSPACE_ROOT / settings.paths.resumes_dir
+        
+        # Find the resume file
+        from cold_emailer.attachments import find_resume_file
+        is_valid, error_msg, resume_info = find_resume_file(resume_id, resumes_dir)
+        
+        if not is_valid or not resume_info:
+            flash(f"Resume file not found: {resume_id}", "error")
+            return redirect(url_for("resumes_page"))
+        
+        # Check if resume is in use by any prospect
+        with get_session(engine) as session:
+            prospect_repo = ProspectRepository(session)
+            prospects = prospect_repo.get_all()
+            prospects_using_resume = [p for p in prospects if p.resume_id == resume_id]
+            
+            if prospects_using_resume:
+                flash(
+                    f"Cannot delete resume '{resume_id}': it is being used by {len(prospects_using_resume)} prospect(s)",
+                    "error"
+                )
+                return redirect(url_for("resumes_page"))
+        
+        # Delete the file
+        resume_path = Path(resume_info["absolute_path"])
+        resume_path.unlink()
+        
+        flash(f"Resume '{resume_id}' deleted successfully!", "success")
+        return redirect(url_for("resumes_page"))
+    
+    except Exception as e:
+        logger.error("Failed to delete resume", resume_id=resume_id, error=str(e))
+        flash(f"Error deleting resume: {str(e)}", "error")
+        return redirect(url_for("resumes_page"))
 
 
 @app.route("/sequences")

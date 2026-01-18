@@ -44,11 +44,36 @@
                     
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="resume_id" class="form-label">Resume ID <span class="text-danger">*</span></label>
+                            <label for="resume_id" class="form-label">
+                                Resume <span class="text-danger">*</span>
+                                <a href="{{ url_for('resumes_page') }}" class="text-decoration-none" target="_blank" title="Manage resumes">
+                                    <i class="bi bi-upload"></i>
+                                </a>
+                            </label>
+                            {% if resumes %}
+                            <select class="form-select" id="resume_id" name="resume_id" required>
+                                <option value="">Select a resume...</option>
+                                {% for resume in resumes %}
+                                    <option value="{{ resume.resume_id }}" 
+                                            {% if prospect.get('resume_id', '') == resume.resume_id %}selected{% endif %}>
+                                        {{ resume.filename }} ({{ resume.size_mb }} MB)
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">
+                                <a href="{{ url_for('resumes_page') }}" class="text-decoration-none">
+                                    <i class="bi bi-upload"></i> Upload new resume
+                                </a>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-warning mb-2">
+                                No resumes found. <a href="{{ url_for('resumes_page') }}" class="alert-link">Upload a resume</a> first.
+                            </div>
                             <input type="text" class="form-control" id="resume_id" name="resume_id" 
                                    value="{{ prospect.get('resume_id', '') }}" 
-                                   placeholder="e.g., RES-001" required>
+                                   placeholder="e.g., my-resume" required>
                             <div class="form-text">Resume file must exist in data/resumes/</div>
+                            {% endif %}
                         </div>
                         
                         <div class="col-md-6 mb-3">

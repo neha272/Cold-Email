@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Resumes - Cold Email Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h2 mb-1">
+            <i class="bi bi-file-earmark-pdf"></i> Manage Resumes
+        </h1>
+        <p class="text-muted mb-0">Upload and manage PDF resume files for your prospects</p>
+    </div>
+</div>
+
+<!-- Upload Section -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">
+            <i class="bi bi-upload"></i> Upload Resume
+        </h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('upload_resume') }}" enctype="multipart/form-data">
+            <div class="row align-items-end">
+                <div class="col-md-9">
+                    <label for="file" class="form-label">Select PDF Resume</label>
+                    <input type="file" class="form-control" id="file" name="file" 
+                           accept=".pdf" required>
+                    <div class="form-text">
+                        <i class="bi bi-info-circle"></i> Only PDF files up to 10MB are accepted. 
+                        The filename (without .pdf) will be used as the resume ID.
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-upload"></i> Upload
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Resumes List -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="bi bi-file-earmark-pdf"></i> Available Resumes ({{ resumes|length }})
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if resumes %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Resume ID</th>
+                        <th>Filename</th>
+                        <th>Size</th>
+                        <th>Last Modified</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for resume in resumes %}
+                    <tr>
+                        <td>
+                            <span class="badge bg-info">{{ resume.resume_id }}</span>
+                        </td>
+                        <td>
+                            <i class="bi bi-file-earmark-pdf text-danger"></i>
+                            {{ resume.filename }}
+                        </td>
+                        <td>{{ resume.size_mb }} MB</td>
+                        <td>
+                            <small class="text-muted">
+                                {{ resume.modified_time|int|datetime }}
+                            </small>
+                        </td>
+                        <td class="text-end">
+                            <form method="POST" action="{{ url_for('delete_resume', resume_id=resume.resume_id) }}" 
+                                  style="display: inline;"
+                                  onsubmit="return confirm('Are you sure you want to delete this resume? This action cannot be undone.');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info mb-0">
+            <i class="bi bi-info-circle"></i>
+            <strong>No resumes found.</strong> Upload a PDF resume file to get started.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Info Section -->
+<div class="alert alert-secondary mt-3">
+    <h6><i class="bi bi-info-circle"></i> How to Use</h6>
+    <ul class="mb-0">
+        <li><strong>Upload:</strong> Select a PDF file and click Upload. The filename (without .pdf) becomes the resume ID.</li>
+        <li><strong>Use in Prospects:</strong> When adding or editing prospects, select this resume from the dropdown.</li>
+        <li><strong>Delete:</strong> You can only delete resumes that are not currently assigned to any prospect.</li>
+        <li><strong>File Naming:</strong> Use descriptive names like <code>john-doe-swe.pdf</code> or <code>resume-v1.pdf</code></li>
+    </ul>
+</div>
+
+<!-- Storage Location -->
+<div class="card mt-3">
+    <div class="card-body">
+        <p class="mb-0">
+            <i class="bi bi-folder"></i> 
+            <strong>Storage Location:</strong> 
+            <code>{{ resumes_dir }}</code>
+        </p>
+    </div>
+</div>
+{% endblock %}

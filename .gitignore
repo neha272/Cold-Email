@@ -46,9 +46,15 @@ data/state.db-journal
 *.db
 *.db-journal
 
-# Project Data (includes resumes, database, Excel files)
-data/
+# Project Data (database, Excel files)
+data/*.xlsx
+data/*.csv
+data/*.db
 prospects.xlsx
+
+# Resumes - keep folder structure but ignore all resume files
+data/resumes/*
+!data/resumes/.gitkeep
 
 # Logs
 logs/

@@ -16,10 +16,11 @@ except ImportError:
 import yaml
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
 from werkzeug.utils import secure_filename
+from sqlalchemy.exc import OperationalError
 
 from cold_emailer.config import EnvSettings, load_config, load_sequences
 from cold_emailer.orchestrator import Orchestrator
-from cold_emailer.state_store.db import create_database_engine, get_session
+from cold_emailer.state_store.db import create_database_engine, get_session, init_database
 from cold_emailer.state_store.models import ProspectStatus
 from cold_emailer.state_store.repo import MessageEventRepository, ProspectRepository
 from cold_emailer.utils import get_logger
@@ -61,35 +62,54 @@ def reload_sequences():
 @app.route("/")
 def index():
     """Dashboard homepage."""
-    with get_session(engine) as session:
-        prospect_repo = ProspectRepository(session)
-        event_repo = MessageEventRepository(session)
-        
-        # Get statistics
-        all_prospects = prospect_repo.get_all()
-        total_prospects = len(all_prospects)
-        
-        # Count by status
-        status_counts = {}
-        for prospect in all_prospects:
-            status = prospect.status
-            status_counts[status] = status_counts.get(status, 0) + 1
-        
-        # Get recent events
-        recent_events = event_repo.get_all_events(limit=10)
-        
-        # Get due prospects
-        now = datetime.utcnow()
-        due_prospects = prospect_repo.get_due_prospects(now, limit=100)
-        
-        return render_template(
-            "index.html",
-            total_prospects=total_prospects,
-            status_counts=status_counts,
-            recent_events=recent_events,
-            due_prospects_count=len(due_prospects),
-            settings=settings,
-        )
+    try:
+        with get_session(engine) as session:
+            prospect_repo = ProspectRepository(session)
+            event_repo = MessageEventRepository(session)
+            
+            # Get statistics
+            all_prospects = prospect_repo.get_all()
+            total_prospects = len(all_prospects)
+            
+            # Count by status
+            status_counts = {}
+            for prospect in all_prospects:
+                status = prospect.status
+                status_counts[status] = status_counts.get(status, 0) + 1
+            
+            # Get recent events
+            recent_events = event_repo.get_all_events(limit=10)
+            
+            # Get due prospects
+            now = datetime.utcnow()
+            due_prospects = prospect_repo.get_due_prospects(now, limit=100)
+            
+            return render_template(
+                "index.html",
+                total_prospects=total_prospects,
+                status_counts=status_counts,
+                recent_events=recent_events,
+                due_prospects_count=len(due_prospects),
+                settings=settings,
+            )
+    except OperationalError as e:
+        error_msg = str(e)
+        # Check if it's a "no such table" error
+        if "no such table" in error_msg.lower():
+            logger.error("Database not initialized", error=error_msg)
+            # Determine if running in Docker or locally
+            is_docker = os.path.exists("/.dockerenv") or os.environ.get("DOCKER_CONTAINER") == "true"
+            init_cmd = "docker compose exec cold-emailer cold-emailer init-db" if is_docker else "poetry run cold-emailer init-db"
+            
+            return render_template(
+                "error.html",
+                error_title="Database Not Initialized",
+                error_message="The database has not been initialized. Please run the initialization command first.",
+                error_details=error_msg,
+                init_command=init_cmd,
+            )
+        # Re-raise other operational errors
+        raise
 
 
 @app.route("/prospects")

@@ -47,6 +47,13 @@ sequences = sequences_data if isinstance(sequences_data, dict) else {"sequences"
 sequences_dict = sequences.get("sequences", {}) if isinstance(sequences, dict) else {}
 engine = create_database_engine(settings.database.path, echo=settings.database.echo)
 
+# Initialize database tables on startup (creates them if they don't exist)
+try:
+    init_database(engine)
+    logger.info("Database initialized successfully")
+except Exception as e:
+    logger.warning("Database initialization warning", error=str(e))
+
 
 def reload_sequences():
     """Reload sequences from file."""

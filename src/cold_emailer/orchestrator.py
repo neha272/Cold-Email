@@ -96,6 +96,58 @@ class Orchestrator:
 
         return start <= current_time <= end
 
+    def _calculate_next_action_time(self, sequence_id: str) -> datetime | None:
+        """
+        Calculate next_action_at based on sequence configuration.
+        
+        Args:
+            sequence_id: ID of the sequence
+            
+        Returns:
+            datetime object for next action, or None for immediate sending
+        """
+        # Get sequence configuration
+        sequences_dict = self.sequences.get("sequences", {})
+        sequence_config = sequences_dict.get(sequence_id, {})
+        schedule_time = sequence_config.get("schedule_initial_at")
+        
+        if not schedule_time:
+            # No scheduling configured, send immediately (when campaign runs)
+            return None
+        
+        try:
+            # Parse the time string (HH:MM format)
+            hours, minutes = map(int, schedule_time.split(":"))
+            
+            # Get current time
+            now = datetime.now()
+            
+            # Create scheduled datetime for today at specified time
+            scheduled_time = now.replace(hour=hours, minute=minutes, second=0, microsecond=0)
+            
+            # If the time has already passed today, schedule for tomorrow
+            if scheduled_time <= now:
+                scheduled_time += timedelta(days=1)
+            
+            logger.info(
+                "Calculated next action time",
+                sequence_id=sequence_id,
+                schedule_time=schedule_time,
+                next_action_at=scheduled_time.isoformat()
+            )
+            
+            return scheduled_time
+            
+        except Exception as e:
+            logger.error(
+                "Failed to parse schedule_initial_at",
+                sequence_id=sequence_id,
+                schedule_time=schedule_time,
+                error=str(e)
+            )
+            # Fall back to immediate sending
+            return None
+
     def ingest_prospects_file(
         self, file_path: Path, reset_state: bool = False
     ) -> tuple[int, int, list[dict[str, Any]]]:
@@ -123,6 +175,25 @@ class Orchestrator:
                 repo=repo,
                 reset_state=reset_state,
             )
+            
+            # Set next_action_at for NEW prospects based on sequence configuration
+            all_prospects = repo.get_all()
+            scheduled_count = 0
+            for prospect in all_prospects:
+                if prospect.status == ProspectStatus.NEW.value and prospect.next_action_at is None:
+                    # Calculate scheduled time based on sequence config
+                    next_action_at = self._calculate_next_action_time(prospect.sequence_id or "default")
+                    if next_action_at:
+                        prospect.next_action_at = next_action_at
+                        scheduled_count += 1
+            
+            if scheduled_count > 0:
+                session.commit()
+                logger.info(
+                    "Scheduled NEW prospects based on sequence configuration",
+                    scheduled_count=scheduled_count
+                )
+            
             return created, updated, errors
 
     def detect_replies(self) -> int:

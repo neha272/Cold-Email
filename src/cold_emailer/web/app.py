@@ -66,6 +66,57 @@ def reload_sequences():
     return sequences
 
 
+def calculate_next_action_time(sequence_id: str) -> datetime | None:
+    """
+    Calculate next_action_at based on sequence configuration.
+    
+    Args:
+        sequence_id: ID of the sequence
+        
+    Returns:
+        datetime object for next action, or None for immediate sending
+    """
+    sequence_config = sequences_dict.get(sequence_id, {})
+    schedule_time = sequence_config.get("schedule_initial_at")
+    
+    if not schedule_time:
+        # No scheduling configured, send immediately (when campaign runs)
+        return None
+    
+    try:
+        # Parse the time string (HH:MM format)
+        hours, minutes = map(int, schedule_time.split(":"))
+        
+        # Get current time
+        now = datetime.now()
+        
+        # Create scheduled datetime for today at specified time
+        scheduled_time = now.replace(hour=hours, minute=minutes, second=0, microsecond=0)
+        
+        # If the time has already passed today, schedule for tomorrow
+        if scheduled_time <= now:
+            scheduled_time += timedelta(days=1)
+        
+        logger.info(
+            "Calculated next action time",
+            sequence_id=sequence_id,
+            schedule_time=schedule_time,
+            next_action_at=scheduled_time.isoformat()
+        )
+        
+        return scheduled_time
+        
+    except Exception as e:
+        logger.error(
+            "Failed to parse schedule_initial_at",
+            sequence_id=sequence_id,
+            schedule_time=schedule_time,
+            error=str(e)
+        )
+        # Fall back to immediate sending
+        return None
+
+
 @app.route("/")
 def index():
     """Dashboard homepage."""
@@ -210,7 +261,9 @@ def add_prospect():
                 prospect_data["resume_sha256"] = resume_info.get("sha256")
                 prospect_data["status"] = ProspectStatus.NEW.value
                 prospect_data["followup_step"] = 0
-                prospect_data["next_action_at"] = None
+                
+                # Calculate next_action_at based on sequence configuration
+                prospect_data["next_action_at"] = calculate_next_action_time(prospect_data["sequence_id"])
                 
                 # Create prospect
                 prospect_repo.create(prospect_data)

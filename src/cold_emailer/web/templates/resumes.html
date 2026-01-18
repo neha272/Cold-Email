@@ -74,7 +74,7 @@
                         <td>{{ resume.size_mb }} MB</td>
                         <td>
                             <small class="text-muted">
-                                {{ resume.modified_time|int|datetime }}
+                                {{ resume.modified_time|timesince }}
                             </small>
                         </td>
                         <td class="text-end">

@@ -792,7 +792,11 @@ def format_datetime(value):
     """Format datetime for display in Chicago timezone."""
     if value is None:
         return "N/A"
-    if isinstance(value, str):
+    
+    # Handle Unix timestamp (int or float)
+    if isinstance(value, (int, float)):
+        value = datetime.fromtimestamp(value, tz=timezone.utc)
+    elif isinstance(value, str):
         try:
             value = datetime.fromisoformat(value)
         except Exception:
@@ -824,7 +828,11 @@ def time_since(value):
     """Human-readable time since in Chicago timezone."""
     if value is None:
         return "Never"
-    if isinstance(value, str):
+    
+    # Handle Unix timestamp (int or float)
+    if isinstance(value, (int, float)):
+        value = datetime.fromtimestamp(value, tz=timezone.utc)
+    elif isinstance(value, str):
         try:
             value = datetime.fromisoformat(value)
         except Exception:

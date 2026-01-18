@@ -2,8 +2,10 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Poetry](https://img.shields.io/badge/poetry-1.5+-blue.svg)](https://python-poetry.org/)
+[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Docker Image](https://img.shields.io/badge/docker%20image-ghcr.io%2Fneha272%2Fcold--email-blue)](https://github.com/neha272/Cold-Email/pkgs/container/cold-email)
 
 A production-quality local cold-email automation tool (Hunter-like) built in Python with robust state tracking, dynamic per-contact PDF resume attachments, and follow-up sequencing that automatically stops when a reply is detected.
 
@@ -59,19 +61,95 @@ A production-quality local cold-email automation tool (Hunter-like) built in Pyt
 
 ## 📋 Requirements
 
-- Python 3.11+
-- Poetry 1.5+ for dependency management
+- **Docker** (recommended) - Docker 20.10+ and Docker Compose 2.0+
+- **OR** Python 3.11+ with Poetry 1.5+ for local development
 - SMTP server access (Gmail, Outlook, etc.)
 - IMAP server access (for reply detection)
 
 ## 🚀 Quick Start
 
-### Installation
+### 🐳 Docker Quickstart (Recommended)
+
+The fastest way to get started is using Docker. The application runs as a web interface accessible in your browser.
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd cold-emailer
+   git clone https://github.com/neha272/Cold-Email.git
+   cd Cold-Email
+   ```
+
+2. **Configure environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your SMTP/IMAP credentials
+   ```
+
+3. **Start the application**
+   ```bash
+   docker compose up --build
+   ```
+
+4. **Access the web interface**
+   - Open your browser to `http://localhost:5000`
+   - The web interface provides a complete UI for managing prospects, running campaigns, and viewing statistics
+
+5. **Initialize the database** (first time only)
+   ```bash
+   docker compose exec cold-emailer cold-emailer init-db
+   ```
+
+6. **Prepare your data**
+   - Add prospects to `data/prospects.xlsx` (or use the web interface)
+   - Add resumes to `data/resumes/`
+   - Configure email sequences via the web interface or edit `config/sequences.yaml`
+
+The Docker setup automatically:
+- ✅ Builds an optimized production image
+- ✅ Runs as a non-root user for security
+- ✅ Persists data in `./data` and `./logs` directories
+- ✅ Includes health checks
+- ✅ Restarts automatically on failure
+
+**Stop the application:**
+```bash
+docker compose down
+```
+
+### 📦 Using Prebuilt Image
+
+You can use the prebuilt image from GitHub Container Registry without building locally:
+
+```bash
+# Pull the latest image
+docker pull ghcr.io/neha272/cold-email:latest
+
+# Run with docker-compose (update image in docker-compose.yml)
+# Or run directly:
+docker run -d \
+  --name cold-emailer \
+  -p 5000:5000 \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/logs:/app/logs \
+  -v $(pwd)/config:/app/config:ro \
+  -v $(pwd)/templates:/app/templates:ro \
+  --env-file .env \
+  ghcr.io/neha272/cold-email:latest
+```
+
+**Image Location:** `ghcr.io/neha272/cold-email:latest`
+
+Images are automatically published to GitHub Container Registry on:
+- Pushes to `main` branch (tagged as `latest`)
+- New releases/tags (tagged with version)
+
+### 💻 No-Docker Installation (Local Development)
+
+For local development without Docker:
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/neha272/Cold-Email.git
+   cd Cold-Email
    ```
 
 2. **Install dependencies**
@@ -90,20 +168,17 @@ A production-quality local cold-email automation tool (Hunter-like) built in Pyt
    poetry run cold-emailer init-db
    ```
 
-5. **Prepare your data**
-   - Add prospects to `data/prospects.xlsx` (or CSV)
-   - Add resumes to `assets/resumes/`
-   - Update `data/resume_manifest.xlsx` with resume mappings
-
-6. **Test with dry-run**
+5. **Start web interface**
    ```bash
+   poetry run cold-emailer web
+   # Or use the CLI directly
    poetry run cold-emailer run --file data/prospects.xlsx --dry-run
    ```
 
-7. **Run live (with confirmation)**
-   ```bash
-   poetry run cold-emailer run --file data/prospects.xlsx --confirm-send
-   ```
+6. **Prepare your data**
+   - Add prospects to `data/prospects.xlsx` (or CSV)
+   - Add resumes to `data/resumes/`
+   - Update email sequences in `config/sequences.yaml`
 
 ## 📁 Project Structure
 
@@ -226,14 +301,38 @@ REQUIRE_CONFIRM_SEND=false
 
 ## 📊 Usage
 
-### Initialize Database
+### Web Interface (Docker)
 
+When running with Docker, access the web interface at `http://localhost:5000`:
+
+- **Dashboard**: View statistics and run campaigns
+- **Prospects**: Add, edit, import, and manage prospects
+- **Sequences**: Configure email follow-up sequences
+- **Statistics**: View campaign analytics and performance
+- **Settings**: View application configuration
+
+### CLI Commands
+
+#### Initialize Database
+
+**Docker:**
+```bash
+docker compose exec cold-emailer cold-emailer init-db
+```
+
+**Local:**
 ```bash
 poetry run cold-emailer init-db
 ```
 
-### Ingest Prospects
+#### Ingest Prospects
 
+**Docker:**
+```bash
+docker compose exec cold-emailer cold-emailer ingest --file data/prospects.xlsx
+```
+
+**Local:**
 ```bash
 poetry run cold-emailer ingest --file data/prospects.xlsx
 # or
@@ -244,30 +343,50 @@ Options:
 - `--manifest`: Path to resume manifest (default: `data/resume_manifest.xlsx`)
 - `--reset-state`: Reset state for existing prospects
 
-### Run Automation (Dry Run)
+#### Run Automation (Dry Run)
 
+**Docker:**
+```bash
+docker compose exec cold-emailer cold-emailer run --file data/prospects.xlsx --dry-run
+```
+
+**Local:**
 ```bash
 poetry run cold-emailer run --file data/prospects.xlsx --dry-run
-# or
-poetry run cold-emailer run --file data/prospects.csv --dry-run
 ```
 
-### Run Automation (Live)
+#### Run Automation (Live)
 
+**Docker:**
+```bash
+docker compose exec cold-emailer cold-emailer run --file data/prospects.xlsx --confirm-send
+```
+
+**Local:**
 ```bash
 poetry run cold-emailer run --file data/prospects.xlsx --confirm-send
-# or
-poetry run cold-emailer run --file data/prospects.csv --confirm-send
 ```
 
-### Check Status
+#### Check Status
 
+**Docker:**
+```bash
+docker compose exec cold-emailer cold-emailer status --limit 50
+```
+
+**Local:**
 ```bash
 poetry run cold-emailer status --limit 50
 ```
 
-### Export Events
+#### Export Events
 
+**Docker:**
+```bash
+docker compose exec cold-emailer cold-emailer export-events --out logs/events.jsonl
+```
+
+**Local:**
 ```bash
 poetry run cold-emailer export-events --out logs/events.jsonl
 ```
@@ -349,9 +468,18 @@ poetry run cold-emailer run --file data/prospects.csv --confirm-send
 
 ## 🔄 Automated Daily Runs
 
-### Cron Setup
+### Docker Cron Setup
 
-Add to your crontab for daily runs:
+For Docker deployments, use a cron job to run campaigns:
+
+```bash
+# Add to your crontab
+0 9 * * * cd /path/to/cold-emailer && docker compose exec -T cold-emailer cold-emailer run --file data/prospects.xlsx --confirm-send >> logs/cron.log 2>&1
+```
+
+### Local Cron Setup
+
+For local deployments:
 
 ```bash
 # Run at 9 AM daily
@@ -360,6 +488,12 @@ Add to your crontab for daily runs:
 
 ### Manual Run
 
+**Docker:**
+```bash
+docker compose exec cold-emailer cold-emailer run --file data/prospects.xlsx --confirm-send
+```
+
+**Local:**
 ```bash
 poetry run cold-emailer run --file data/prospects.csv --confirm-send
 ```
@@ -397,6 +531,80 @@ This project is implemented in phases:
 - ✅ **Phase 6**: IMAP reply detector
 - ✅ **Phase 7**: Orchestrator end-to-end
 - ✅ **Phase 8**: Polish for GitHub + LinkedIn
+
+## 🐳 Docker Details
+
+### Image Information
+
+- **Registry**: GitHub Container Registry (GHCR)
+- **Image**: `ghcr.io/neha272/cold-email:latest`
+- **Architecture**: Multi-arch (linux/amd64, linux/arm64)
+- **Base Image**: `python:3.11-slim`
+- **Size**: ~200MB (optimized with multi-stage build)
+
+### Building Locally
+
+```bash
+# Build the image
+docker build -t cold-emailer:local .
+
+# Run the container
+docker run -d \
+  --name cold-emailer \
+  -p 5000:5000 \
+  --env-file .env \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/logs:/app/logs \
+  -v $(pwd)/config:/app/config:ro \
+  -v $(pwd)/templates:/app/templates:ro \
+  cold-emailer:local
+```
+
+### Docker Troubleshooting
+
+**Container won't start:**
+```bash
+# Check logs
+docker compose logs cold-emailer
+
+# Check if port is already in use
+lsof -i :5000
+```
+
+**Permission issues:**
+```bash
+# Ensure data directories are writable
+chmod -R 755 data logs
+```
+
+**Database initialization:**
+```bash
+# Initialize database inside container
+docker compose exec cold-emailer cold-emailer init-db
+```
+
+**Update to latest image:**
+```bash
+# Pull latest image
+docker compose pull
+
+# Restart with new image
+docker compose up -d
+```
+
+### Environment Variables
+
+All configuration is done via environment variables. See `.env.example` for all available options.
+
+**Required for email sending:**
+- `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`
+- `IMAP_HOST`, `IMAP_USER`, `IMAP_PASSWORD`
+
+**Optional:**
+- `PORT` - Web interface port (default: 5000)
+- `FLASK_SECRET_KEY` - Secret key for Flask sessions
+- `DAILY_MAX_EMAILS` - Daily email limit (default: 50)
+- `PER_MINUTE_LIMIT` - Rate limit (default: 5)
 
 ## 🔒 Security Notes
 

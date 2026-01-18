@@ -1,0 +1,68 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info
+.eggs
+dist/
+build/
+.pytest_cache
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Data (will be mounted as volumes)
+data/
+logs/
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Testing
+tests/
+.pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.log
+
+# Poetry
+poetry.lock
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml

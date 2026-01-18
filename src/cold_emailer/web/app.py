@@ -721,15 +721,19 @@ def time_since(value):
 
 def main():
     """Run the Flask development server."""
+    # Get port from environment or default to 5000
+    port = int(os.environ.get("PORT", 5000))
+    debug = os.environ.get("FLASK_ENV", "production") == "development"
+    
     print("\n" + "="*60)
     print("🚀 Cold Email Campaign Manager - Web Interface")
     print("="*60)
-    print(f"\n📍 Server running at: http://localhost:5000")
+    print(f"\n📍 Server running at: http://0.0.0.0:{port}")
     print(f"📁 Workspace: {WORKSPACE_ROOT}")
     print(f"🗄️  Database: {settings.database.path}")
     print("\n💡 Press Ctrl+C to stop the server\n")
     
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=debug, host="0.0.0.0", port=port)
 
 
 if __name__ == "__main__":

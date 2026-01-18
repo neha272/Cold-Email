@@ -27,7 +27,7 @@ ENV/
 env/
 
 # Poetry
-poetry.lock
+# poetry.lock - committed for reproducible builds
 
 # IDE
 .vscode/

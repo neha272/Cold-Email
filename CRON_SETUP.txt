@@ -1,0 +1,35 @@
+# Cron Job Setup for Cold Email Campaign
+# Run this to install the cron job
+
+# The cron job runs the campaign every day at 9:00 AM
+
+# To install the cron job, run:
+# crontab -e
+# Then add the following line:
+
+# Run cold-email campaign every day at 9:00 AM
+0 9 * * * /Users/lalakiya/Library/CloudStorage/OneDrive-WashingtonUniversityinSt.Louis/Neha/Cold-Email/scripts/run_campaign.sh
+
+# To verify the cron job is installed, run:
+# crontab -l
+
+# To remove the cron job, run:
+# crontab -e
+# And delete the line
+
+# NOTE: The full path is required in cron jobs
+# Change the path above to match your actual project location if different
+
+# Cron Time Format: 
+# MIN HOUR DOM MON DOW COMMAND
+# MIN   = Minute (0-59)
+# HOUR  = Hour (0-23)
+# DOM   = Day of Month (1-31)
+# MON   = Month (1-12)
+# DOW   = Day of Week (0-6) where 0=Sunday
+
+# Examples:
+# 0 9 * * *    = Every day at 9:00 AM
+# 0 9 * * 1-5  = Every weekday at 9:00 AM (Monday-Friday)
+# 0 9,14 * * * = Every day at 9:00 AM and 2:00 PM
+# */5 * * * *  = Every 5 minutes

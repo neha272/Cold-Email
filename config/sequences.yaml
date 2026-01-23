@@ -24,7 +24,7 @@ sequences:
 
   aggressive:
     name: "Aggressive Sequence"
-    schedule_initial_at: "09:00"  # Schedule for 9 AM CST next day
+    #schedule_initial_at: "09:00"  # Schedule for 9 AM CST next day
     steps:
       - step: 0
         template: "Initial"
@@ -41,7 +41,7 @@ sequences:
 
   gentle:
     name: "Gentle Sequence"
-    schedule_initial_at: "09:00"  # Schedule for 9 AM CST next day
+    #schedule_initial_at: "09:00"  # Schedule for 9 AM CST next day
     steps:
       - step: 0
         template: "Initial"

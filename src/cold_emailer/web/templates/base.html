@@ -578,10 +578,37 @@
             display: inline-flex;
             align-items: center;
             gap: 0.35rem;
+            color: white !important;
         }
         
         .badge-status i {
             font-size: 0.9rem;
+        }
+        
+        /* Status-specific badge colors */
+        .badge-status.bg-success {
+            background: #34C759 !important;
+            color: white !important;
+        }
+        
+        .badge-status.bg-info {
+            background: #0A84FF !important;
+            color: white !important;
+        }
+        
+        .badge-status.bg-primary {
+            background: #0A84FF !important;
+            color: white !important;
+        }
+        
+        .badge-status.bg-warning {
+            background: #FF9500 !important;
+            color: white !important;
+        }
+        
+        .badge-status.bg-secondary {
+            background: #8E8E93 !important;
+            color: white !important;
         }
         
         .bg-primary {
@@ -695,6 +722,32 @@
             border-color: var(--primary-color) !important;
         }
         
+        /* Table text visibility */
+        .table {
+            color: var(--text-primary) !important;
+        }
+        
+        .table thead th {
+            color: var(--text-primary) !important;
+            background-color: rgba(44, 44, 46, 1) !important;
+            border-bottom: 1px solid rgba(99, 99, 102, 0.3) !important;
+        }
+        
+        .table tbody td {
+            color: var(--text-primary) !important;
+            vertical-align: middle;
+        }
+        
+        .table tbody tr {
+            background-color: rgba(28, 28, 30, 1) !important;
+            border-bottom: 1px solid rgba(99, 99, 102, 0.2) !important;
+        }
+        
+        .table tbody tr:hover {
+            background-color: rgba(44, 44, 46, 0.6) !important;
+        }
+        
+
 
         .form-label {
             font-weight: 600;

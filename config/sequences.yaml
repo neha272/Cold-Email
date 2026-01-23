@@ -28,11 +28,11 @@ sequences:
     steps:
       - step: 0
         template: "Initial"
-        wait_days: 2
+        wait_days: 0
         subject: "Application for {{ role_title }} position at {{ company }}"
       - step: 1
         template: "Followup 1"
-        wait_days: 3
+        wait_days: 2
         subject: "Following up on my application for {{ role_title }} at {{ company }}"
       - step: 2
         template: "Followup 2"

@@ -138,6 +138,8 @@ def reload_sequences() -> dict[str, Any]:
 def calculate_next_action_time(sequence_id: str) -> datetime | None:
     """
     Calculate next_action_at based on sequence configuration.
+    
+    Schedules for 09:00 AM next business day (excluding weekends) if no schedule specified.
 
     Args:
         sequence_id: ID of the sequence
@@ -147,10 +149,10 @@ def calculate_next_action_time(sequence_id: str) -> datetime | None:
     """
     sequence_config = sequences_dict.get(sequence_id, {})
     schedule_time = sequence_config.get("schedule_initial_at")
-
+    
+    # Default to 9 AM if not specified
     if not schedule_time:
-        # No scheduling configured, send immediately (when campaign runs)
-        return None
+        schedule_time = "09:00"
 
     try:
         # Parse the time string (HH:MM format)
@@ -164,6 +166,10 @@ def calculate_next_action_time(sequence_id: str) -> datetime | None:
 
         # If the time has already passed today, schedule for tomorrow
         if scheduled_time <= now:
+            scheduled_time += timedelta(days=1)
+        
+        # Skip weekends (5=Saturday, 6=Sunday)
+        while scheduled_time.weekday() >= 5:
             scheduled_time += timedelta(days=1)
 
         logger.info(

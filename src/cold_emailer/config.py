@@ -56,6 +56,15 @@ class LoggingSettings(BaseModel):
     backup_count: int = 5
 
 
+class EmailVerificationSettings(BaseModel):
+    """Email verification settings."""
+
+    smtp_probe_enabled: bool = False
+    probe_cache_minutes: int = 60
+    probe_rate_limit_seconds: int = 60
+    smtp_timeout_seconds: int = 8
+
+
 class DatabaseSettings(BaseModel):
     """Database configuration."""
 
@@ -81,6 +90,7 @@ class Settings(BaseModel):
     safety: SafetySettings
     paths: PathsSettings
     logging: LoggingSettings
+    email_verification: EmailVerificationSettings
 
 
 class EnvSettings(BaseSettings):
@@ -111,6 +121,8 @@ class EnvSettings(BaseSettings):
     # Safety
     safe_mode: bool = Field(alias="SAFE_MODE", default=True)
     require_confirm_send: bool = Field(alias="REQUIRE_CONFIRM_SEND", default=False)
+    # Email verification override
+    smtp_probe_enabled: bool = Field(alias="ENABLE_SMTP_PROBE", default=False)
 
 
 def load_config(config_path: str = "config/settings.yaml") -> Settings:

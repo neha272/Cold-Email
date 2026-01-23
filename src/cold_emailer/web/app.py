@@ -39,6 +39,7 @@ from cold_emailer.config import (  # noqa: E402
     load_sequences,
     validate_env_on_startup,
 )
+from cold_emailer.verification import verify_email  # noqa: E402
 from cold_emailer.orchestrator import Orchestrator  # noqa: E402
 from cold_emailer.state_store.db import (  # noqa: E402
     create_database_engine,
@@ -375,6 +376,27 @@ def add_prospect():
                         sequences=sequences_dict,
                         resumes=available_resumes,
                     )
+                # Run email verification (Tier1 + Tier2)
+                enable_smtp_probe = bool(env_settings.smtp_probe_enabled) or bool(
+                    getattr(settings, "email_verification", None) and settings.email_verification.smtp_probe_enabled
+                )
+                ver = verify_email(
+                    prospect_data["email"],
+                    enable_smtp=enable_smtp_probe,
+                    settings=settings,
+                )
+                # Block on syntax_invalid or invalid
+                if ver.get("status") in ("syntax_invalid", "invalid"):
+                    flash(f"Invalid email address: {ver.get('status')}: {', '.join(ver.get('reasons', []))}", "error")
+                    return render_template(
+                        "add_prospect.html",
+                        prospect=prospect_data,
+                        sequences=sequences_dict,
+                        resumes=available_resumes,
+                    )
+                # Warn on risky/unknown/accept_all/smtp_probe_disabled but allow
+                if ver.get("status") in ("risky", "unknown", "accept_all", "smtp_probe_disabled"):
+                    flash(f"Email verification warning: {ver.get('status')}", "warning")
 
                 # Check if prospect already exists
                 existing = prospect_repo.get_by_email(prospect_data["email"])
@@ -517,6 +539,27 @@ def edit_prospect(prospect_id):
                         sequences=sequences_dict,
                         resumes=available_resumes,
                     )
+
+                # Run email verification (Tier1 + Tier2)
+                enable_smtp_probe = bool(env_settings.smtp_probe_enabled) or bool(
+                    getattr(settings, "email_verification", None) and settings.email_verification.smtp_probe_enabled
+                )
+                ver = verify_email(
+                    prospect_data["email"],
+                    enable_smtp=enable_smtp_probe,
+                    settings=settings,
+                )
+                if ver.get("status") in ("syntax_invalid", "invalid"):
+                    flash(f"Invalid email address: {ver.get('status')}: {', '.join(ver.get('reasons', []))}", "error")
+                    return render_template(
+                        "edit_prospect.html",
+                        prospect=prospect,
+                        prospect_data=prospect_data,
+                        sequences=sequences_dict,
+                        resumes=available_resumes,
+                    )
+                if ver.get("status") in ("risky", "unknown", "accept_all", "smtp_probe_disabled"):
+                    flash(f"Email verification warning: {ver.get('status')}", "warning")
 
                 # Update resume if changed
                 if prospect_data["resume_id"] != prospect.resume_id:
@@ -1226,6 +1269,29 @@ def time_since(value):
         return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
     else:
         return "Just now"
+
+
+@app.route("/verify", methods=["GET", "POST"])
+@auth.login_required
+def verify_email_page():
+    """Email verification tool page."""
+    result = None
+    submitted_email = None
+
+    if request.method == "POST":
+        email = request.form.get("email", "").strip()
+        enable_smtp = request.form.get("enable_smtp") == "on"
+
+        if email:
+            submitted_email = email
+            result = verify_email(email, enable_smtp=enable_smtp, settings=settings)
+
+    return render_template(
+        "verify_email.html",
+        result=result,
+        submitted_email=submitted_email,
+        smtp_probe_enabled=bool(env_settings.smtp_probe_enabled),
+    )
 
 
 def main():

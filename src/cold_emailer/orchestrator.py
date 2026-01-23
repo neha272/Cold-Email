@@ -7,6 +7,7 @@ from typing import Any
 
 from cold_emailer.composer import create_composer_from_config
 from cold_emailer.config import EnvSettings
+from cold_emailer.verification import verify_email
 from cold_emailer.export import export_prospects_to_excel
 from cold_emailer.ingestion import ingest_prospects
 from cold_emailer.mailer.imap_reply_detector import create_reply_detector_from_config
@@ -391,6 +392,40 @@ class Orchestrator:
 
             # Merge prospect into this session to avoid detached instance errors
             prospect = session.merge(prospect)
+
+            # Run email verification (Tier1 + Tier2, SMTP optional)
+            enable_smtp_probe = bool(self.env_settings.smtp_probe_enabled) or bool(
+                getattr(self.settings, "email_verification", None)
+                and self.settings.email_verification.smtp_probe_enabled
+            )
+            ver = verify_email(prospect.email, enable_smtp=enable_smtp_probe, settings=self.settings)
+            if ver.get("status") in ("syntax_invalid", "invalid"):
+                # Block sending - record failure
+                event_repo.create(
+                    {
+                        "prospect_id": prospect.id,
+                        "event_type": MessageEventType.SEND_FAIL.value,
+                        "subject": subject,
+                        "template_id": template_name,
+                        "meta_json": f'{{"error": "Email verification failed: {ver.get("status")}"}}',
+                    }
+                )
+                prospect_repo.update_status(prospect.id, ProspectStatus.ERROR)
+                prospect_repo.update_next_action(prospect.id, None)
+                logger.warning(
+                    "Email verification blocked send",
+                    prospect_id=str(prospect.id),
+                    email=prospect.email,
+                    result=ver,
+                )
+                return False, None
+            if ver.get("status") in ("risky", "unknown", "accept_all", "smtp_probe_disabled"):
+                logger.warning(
+                    "Email verification warning before send",
+                    prospect_id=str(prospect.id),
+                    email=prospect.email,
+                    result=ver,
+                )
 
             # Get template variables
             variables = self.composer.get_template_variables_from_prospect(prospect, self.sequences)

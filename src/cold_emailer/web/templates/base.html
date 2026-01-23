@@ -619,13 +619,13 @@
             background: rgba(58, 58, 60, 0.6);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
-            color: var(--text-primary);
+            color: var(--text-primary) !important;
             font-weight: 500;
             font-size: 0.95rem;
         }
         
         .form-control::placeholder {
-            color: var(--text-tertiary);
+            color: var(--text-tertiary) !important;
         }
         
         .form-control:focus, .form-select:focus {
@@ -633,8 +633,69 @@
             box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2);
             background: rgba(58, 58, 60, 0.8);
             outline: none;
+            color: var(--text-primary) !important;
         }
         
+        /* Fix autofill text color */
+        .form-control:-webkit-autofill,
+        .form-control:-webkit-autofill:hover,
+        .form-control:-webkit-autofill:focus {
+            -webkit-box-shadow: 0 0 0 1000px rgba(58, 58, 60, 0.6) inset !important;
+            -webkit-text-fill-color: var(--text-primary) !important;
+            caret-color: var(--text-primary) !important;
+        }
+        
+        /* Input text while typing */
+        input[type="text"],
+        input[type="email"],
+        input[type="number"],
+        input[type="search"],
+        input[type="url"],
+        input[type="password"],
+        textarea {
+            color: var(--text-primary) !important;
+            caret-color: var(--text-primary) !important;
+        }
+        
+        input[type="text"]::placeholder,
+        input[type="email"]::placeholder,
+        input[type="number"]::placeholder,
+        input[type="search"]::placeholder,
+        input[type="url"]::placeholder,
+        input[type="password"]::placeholder,
+        textarea::placeholder {
+            color: var(--text-tertiary) !important;
+        }
+        
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        input[type="number"]:focus,
+        input[type="search"]:focus,
+        input[type="url"]:focus,
+        input[type="password"]:focus,
+        textarea:focus {
+            color: var(--text-primary) !important;
+            caret-color: var(--text-primary) !important;
+        }
+        
+        /* Checkbox and label styling */
+        .form-check-label {
+            color: var(--text-primary) !important;
+            font-weight: 500;
+        }
+        
+        .form-check-input {
+            border-color: rgba(255, 255, 255, 0.3) !important;
+            background-color: rgba(58, 58, 60, 0.6) !important;
+            accent-color: var(--primary-color) !important;
+        }
+        
+        .form-check-input:checked {
+            background-color: var(--primary-color) !important;
+            border-color: var(--primary-color) !important;
+        }
+        
+
         .form-label {
             font-weight: 600;
             color: var(--text-primary);
@@ -1200,6 +1261,11 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('prospects_list') }}">
                             <i class="bi bi-people"></i> Prospects
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('verify_email_page') }}">
+                            <i class="bi bi-check-circle"></i> Verify Email
                         </a>
                     </li>
                     <li class="nav-item">

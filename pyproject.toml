@@ -23,6 +23,7 @@ flask = "^3.0.0"  # for web interface
 gunicorn = "^21.2.0"  # production WSGI server
 flask-limiter = "^3.5.0"  # rate limiting
 flask-httpauth = "^4.8.0"  # basic authentication
+dnspython = "^2.3.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"

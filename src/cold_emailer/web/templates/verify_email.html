@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}Email Verification Tool{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1>📧 Email Verification Tool</h1>
+            <p class="text-muted">Test email addresses with Tier 1 (syntax), Tier 2 (DNS), and optional Tier 3 (SMTP) checks.</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">🔍 Verify Email Address</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" class="mb-4">
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email Address</label>
+                            <input 
+                                type="email" 
+                                class="form-control" 
+                                id="email" 
+                                name="email"
+                                placeholder="user@example.com"
+                                value="{{ submitted_email or '' }}"
+                                required
+                            >
+                            <small class="form-text text-muted">Enter an email address to verify.</small>
+                        </div>
+
+                        <!-- SMTP Probing always enabled -->
+                        <input 
+                            type="hidden" 
+                            name="enable_smtp" 
+                            value="on"
+                        >
+                        <div class="alert alert-success d-flex align-items-center mb-3">
+                            <i class="bi bi-check-circle me-2"></i>
+                            <div>
+                                <strong>SMTP Probing (Tier 3) Enabled</strong>
+                                <small class="d-block">More accurate checks - verifies if mailbox actually exists.</small>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-check-circle"></i> Verify Email
+                        </button>
+                    </form>
+
+                    <!-- Info Box -->
+                    <div class="alert alert-info">
+                        <h6>What gets checked?</h6>
+                        <ul class="mb-0 small">
+                            <li><strong>Tier 1:</strong> Email syntax (RFC 5322)</li>
+                            <li><strong>Tier 2:</strong> DNS MX/A records</li>
+                            <li><strong>Tier 3:</strong> SMTP handshake (optional)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        {% if result %}
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header {% if result.status in ['valid', 'smtp_probe_disabled'] %}bg-success{% elif result.status in ['invalid', 'syntax_invalid'] %}bg-danger{% else %}bg-warning{% endif %} text-white">
+                    <h5 class="mb-0">
+                        {% if result.status == 'valid' %}
+                            ✅ Valid Email
+                        {% elif result.status == 'invalid' %}
+                            ❌ Invalid Email
+                        {% elif result.status == 'syntax_invalid' %}
+                            ❌ Syntax Error
+                        {% elif result.status == 'accept_all' %}
+                            ⚠️ Accept-All Domain
+                        {% elif result.status == 'risky' %}
+                            ⚠️ Risky
+                        {% elif result.status == 'unknown' %}
+                            ❓ Unknown
+                        {% elif result.status == 'smtp_probe_disabled' %}
+                            ✅ MX Found (SMTP Probing Disabled)
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Status Table -->
+                    <table class="table table-sm mb-3">
+                        <tbody>
+                            <tr>
+                                <th style="width: 30%;">Email</th>
+                                <td><code>{{ submitted_email }}</code></td>
+                            </tr>
+                            <tr>
+                                <th>Status</th>
+                                <td>
+                                    <span class="badge {% if result.status in ['valid', 'smtp_probe_disabled'] %}bg-success{% elif result.status in ['invalid', 'syntax_invalid'] %}bg-danger{% else %}bg-warning{% endif %}">
+                                        {{ result.status }}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Confidence</th>
+                                <td>
+                                    <div class="progress" style="height: 20px;">
+                                        <div 
+                                            class="progress-bar {% if result.confidence >= 0.9 %}bg-success{% elif result.confidence >= 0.6 %}bg-info{% elif result.confidence >= 0.3 %}bg-warning{% else %}bg-secondary{% endif %}" 
+                                            role="progressbar" 
+                                            style="width: {{ result.confidence * 100 }}%"
+                                        >
+                                            {{ (result.confidence * 100) | int }}%
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% if result.normalized_email %}
+                            <tr>
+                                <th>Normalized</th>
+                                <td><code>{{ result.normalized_email }}</code></td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <th>Catch-All</th>
+                                <td>
+                                    {% if result.is_catch_all is none %}
+                                        <span class="text-muted">Not checked</span>
+                                    {% elif result.is_catch_all %}
+                                        <span class="badge bg-warning">Yes</span>
+                                    {% else %}
+                                        <span class="badge bg-success">No</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- MX Hosts -->
+                    {% if result.mx_hosts %}
+                    <div class="mb-3">
+                        <h6>📧 MX Hosts</h6>
+                        <ul class="list-group list-group-sm">
+                            {% for host in result.mx_hosts %}
+                            <li class="list-group-item"><code>{{ host }}</code></li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <!-- Reasons -->
+                    {% if result.reasons %}
+                    <div class="mb-3">
+                        <h6>🔍 Checks Performed</h6>
+                        <ul class="list-group list-group-sm">
+                            {% for reason in result.reasons %}
+                            <li class="list-group-item">
+                                <i class="bi bi-check-circle text-success"></i>
+                                <code>{{ reason }}</code>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <!-- Action Badge -->
+                    <div class="alert {% if result.status in ['invalid', 'syntax_invalid'] %}alert-danger{% elif result.status in ['risky', 'unknown', 'accept_all', 'smtp_probe_disabled'] %}alert-warning{% else %}alert-success{% endif %} mb-0">
+                        <strong>Recommendation:</strong>
+                        {% if result.status in ['invalid', 'syntax_invalid'] %}
+                            ✗ <strong>Block</strong> — Do not send emails to this address
+                        {% elif result.status == 'valid' %}
+                            ✓ <strong>Send</strong> — Email address is valid
+                        {% elif result.status == 'accept_all' %}
+                            ⚠️ <strong>Warn</strong> — Domain accepts all addresses; may bounce
+                        {% elif result.status == 'risky' %}
+                            ⚠️ <strong>Warn</strong> — Domain lacks MX records; risky
+                        {% elif result.status == 'unknown' %}
+                            ⚠️ <strong>Warn</strong> — Could not determine validity
+                        {% elif result.status == 'smtp_probe_disabled' %}
+                            ✓ <strong>Send (but enable SMTP probing for verification)</strong> — Domain is valid, but SMTP probing is disabled
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <!-- Empty State -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <h5 class="text-muted">No email to verify yet</h5>
+                    <p class="text-muted">Enter an email address on the left to see verification results.</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Help Section -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-header">
+                    <h6 class="mb-0">📚 Understanding the Results</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6 class="text-success">✓ Valid (Confidence 0.9)</h6>
+                            <small>SMTP probe accepted the email. Very likely valid. Safe to send.</small>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-danger">✗ Invalid (Confidence 0.9-0.95)</h6>
+                            <small>Domain invalid or mailbox rejected. Will bounce. Do not send.</small>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-danger">✗ Syntax Error (Confidence 1.0)</h6>
+                            <small>Email format is invalid (missing @, bad TLD, etc.). Block.</small>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6 class="text-warning">⚠️ Accept-All (Confidence 0.6)</h6>
+                            <small>Domain accepts all addresses. May bounce later. Warn user.</small>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-warning">⚠️ Risky (Confidence 0.35)</h6>
+                            <small>Domain has A record but no MX. Uncommon setup. Warn user.</small>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-warning">⚠️ Unknown (Confidence 0.3)</h6>
+                            <small>Could not verify (timeout, SMTP disabled, etc.). Warn user.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.list-group-sm .list-group-item {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+}
+</style>
+{% endblock %}

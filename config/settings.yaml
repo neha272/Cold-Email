@@ -32,6 +32,13 @@ safety:
   validate_email_domain: true
   max_attachment_size_mb: 10
 
+# Email verification settings
+email_verification:
+  smtp_probe_enabled: false
+  probe_cache_minutes: 60
+  probe_rate_limit_seconds: 60
+  smtp_timeout_seconds: 8
+
 # Paths
 paths:
   prospects_dir: "data"

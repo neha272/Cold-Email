@@ -13,6 +13,7 @@ A production-ready cold email automation tool with state tracking, dynamic PDF a
 - **Follow-up Sequencing**: Configurable multi-step sequences with automatic stop on reply
 - **Reply Detection**: IMAP-based with Message-ID threading
 - **Safety First**: Fail-closed validation, dry-run mode, throttling
+- **Email Verification**: Syntax validation, DNS MX lookup, optional SMTP probing (free, no paid APIs)
 - **Web Interface**: Complete UI for managing campaigns
 - **Production Ready**: Fully typed, tested, and Docker-ready
 
@@ -227,6 +228,86 @@ docker compose logs -f
 tar -czf backup_$(date +%Y%m%d).tar.gz data/
 ```
 
+## 📧 Email Verification
+
+Cold Emailer includes a **free, built-in email verification system** with three tiers:
+
+### Tier 1: Syntax Validation
+Validates email format using industry-standard `email-validator` library.
+- Catches obvious mistakes (missing @, invalid TLDs, etc.)
+- Returns `syntax_invalid` if email fails basic format rules.
+- **Always active** — no configuration needed.
+
+### Tier 2: DNS Validation (Default, Always Active)
+Checks if the domain has valid MX or A/AAAA records:
+- **MX Found**: `mx_found` → confidence 0.5 (likely valid, but not verified)
+- **No MX, but A/AAAA**: `risky` → confidence 0.35 (email might exist, but domain lacks proper mail setup)
+- **Domain invalid**: `invalid` → confidence 0.9 (domain does not resolve)
+
+### Tier 3: SMTP Probing (Optional, Disabled by Default)
+Advanced SMTP handshake verification that **does not send any email**:
+- Connects to MX server on port 25 with 8-second timeout
+- Sends: `EHLO`, `MAIL FROM:<verifier@ourdomain.invalid>`, `RCPT TO:<target>`
+- **Interprets responses:**
+  - `250/251` → `likely_valid` → final status `valid` (confidence 0.9)
+  - `550/551/553` → `invalid_mailbox` (confidence 0.95)
+  - `450/451/452, 421, timeout` → `unknown` (confidence 0.3)
+- **Catch-all detection**: Probes a random address; if also accepted → `accept_all` (confidence 0.6)
+- **Rate limiting**: Per-domain throttling prevents server hammering
+- **Caching**: Results cached for TTL (default 60 minutes)
+
+### Result Statuses
+
+| Status | Confidence | Action | Notes |
+|--------|-----------|--------|-------|
+| `valid` | 0.9 | ✓ Send | SMTP probe accepted |
+| `invalid` | 0.9-0.95 | ✗ Block | Domain invalid or mailbox rejected |
+| `syntax_invalid` | 1.0 | ✗ Block | Email format invalid |
+| `accept_all` | 0.6 | ⚠️ Warn | Domain accepts all addresses; may bounce |
+| `unknown` | 0.3 | ⚠️ Warn | Temporary error or SMTP probe disabled |
+| `risky` | 0.35 | ⚠️ Warn | Domain has no MX record; falls back to A/AAAA |
+| `smtp_probe_disabled` | 0.5 | ⚠️ Warn | MX found but SMTP probing is off |
+
+### Enabling SMTP Probing
+
+**Option 1: Environment variable** (recommended)
+```bash
+export ENABLE_SMTP_PROBE=true
+```
+
+**Option 2: Edit `config/settings.yaml`**
+```yaml
+email_verification:
+  smtp_probe_enabled: true
+  probe_cache_minutes: 60
+  probe_rate_limit_seconds: 60
+  smtp_timeout_seconds: 8
+```
+
+### Ethical Use Notes
+
+⚠️ **Important:** SMTP probing is powerful but must be used responsibly:
+
+1. **No Spam**: We use a benign `MAIL FROM:<verifier@ourdomain.invalid>` and do NOT send actual emails.
+2. **Respect Rate Limits**: Per-domain throttling prevents server hammering (default: 60 sec between probes per domain).
+3. **Transparent**: Users see warnings for risky addresses; results are not hidden.
+4. **Compliance**: Use results only for improving email list quality, not harvesting valid addresses.
+5. **Opt-in**: SMTP probing is disabled by default; users must explicitly enable it.
+6. **Timeout Handling**: 8-second socket timeouts prevent long-running probes.
+
+### How Verification Integrates
+
+**In the web UI (add/edit prospect):**
+- Tier 1+2 runs automatically on prospect submission
+- Blocks submission on `syntax_invalid` or `invalid`
+- Shows warning for `risky`, `unknown`, `accept_all`, `smtp_probe_disabled`
+
+**Before sending emails (CLI/orchestrator):**
+- Runs verification again (Tier 1+2, SMTP optional if enabled)
+- Blocks sending on `syntax_invalid` or `invalid`
+- Logs warnings for risky statuses
+- Never sends to blocked addresses
+
 ## 🧪 Development
 
 ```bash
@@ -237,6 +318,9 @@ make all
 make format    # Format code
 make lint      # Run linters
 make test      # Run tests
+
+# Run email verification tests specifically
+poetry run pytest tests/test_email_verification.py -v
 ```
 
 ## 🔒 Security & Best Practices
